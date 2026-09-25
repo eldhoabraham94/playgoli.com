@@ -1,0 +1,50 @@
+import { useEffect, useRef } from 'react';
+
+export interface StripPlayer {
+  id: string;
+  name: string;
+  color: string;
+  count: number;
+  away?: boolean;
+  you?: boolean;
+}
+
+export function PlayerStrip({
+  players,
+  currentId,
+  onPick,
+}: {
+  players: StripPlayer[];
+  currentId: string | null;
+  /** When set (host), chips are tappable. */
+  onPick?: (id: string) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    ref.current?.querySelector('.chip.active')?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+  }, [currentId]);
+  return (
+    <div className="strip" ref={ref}>
+      {players.map((p) => {
+        const cls = `chip${p.id === currentId ? ' active' : ''}${p.away ? ' away' : ''}${p.you ? ' you' : ''}`;
+        const inner = (
+          <>
+            <span className="dot" style={{ background: p.color }}>
+              {p.count}
+            </span>
+            <span className="chip-name">{p.name}</span>
+          </>
+        );
+        return onPick && !p.you ? (
+          <button key={p.id} className={cls} onClick={() => onPick(p.id)}>
+            {inner}
+          </button>
+        ) : (
+          <div key={p.id} className={cls}>
+            {inner}
+          </div>
+        );
+      })}
+    </div>
+  );
+}

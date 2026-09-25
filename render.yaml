@@ -1,0 +1,23 @@
+# Render Blueprint: New → Blueprint → pick this repo.
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: goli
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    # "free" sleeps after ~15 min idle (first visit then takes ~30-50 s).
+    # Switch to "starter" for always-on play.
+    plan: free
+    # Closest Render region to India.
+    region: singapore
+    # Rooms live in memory: keep exactly one instance.
+    numInstances: 1
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: TRUST_PROXY
+        value: "1"
+      # Your public URL, e.g. https://goli.onrender.com (used for link-preview images).
+      # Leave unset at first; the server falls back to the request's host.
+      - key: PUBLIC_URL
+        sync: false

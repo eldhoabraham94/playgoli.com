@@ -1,0 +1,29 @@
+{
+  "name": "goli",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p shared && tsc -p server && tsc -p client",
+    "build": "npm run build -w @goli/client && npm run build -w @goli/server",
+    "bots": "npm run bots -w @goli/server --",
+    "og": "node scripts/make-og.mjs",
+    "start": "node server/dist/index.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.4",
+    "typescript": "^5.6.2",
+    "vitest": "^2.1.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
