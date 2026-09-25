@@ -74,6 +74,16 @@ dt = 1/240; each step: integrate → mark off-board bodies → pairwise collisio
 - Env: PORT, PUBLIC_URL (absolute OG URLs), TRUST_PROXY=1 behind Render's proxy (set in Dockerfile), STATIC_DIR.
 - Limits: 10 rooms/10 min/IP, 30 burst + 15 msg/s per socket, 60 sockets/IP, 10 KB messages, 1 reaction/s.
 
+## 3D board + mobile layout
+- The board is a CSS 3D stage (`.board-stage`): `translateY(shift) perspective(3×size) rotateX(24°)` plus a `.slab-front` earth edge. Constants TILT/PERSP/SLAB live in client/src/game/Board.tsx.
+- Size comes from the container only (`.board-wrap` has min-width/min-height 0): never let the canvas size feed back into layout (that bug cut the board off on phones).
+- Touch input is inverse-projected in `toLogical` (Board.tsx). `npm run shots` verifies it in real Chrome (expects "worst error 0") and does a real touch shot.
+- Marbles are drawn lifted by r·tan(tilt) and stretched 1/cos(tilt) so they look round; order: ground marks (shadow, contact, caustic, clock ring, aim) → spheres sorted far-to-near.
+- `.game` is a grid: top bar (strip + leave) / board / fixed-height status. In landscape (≤560 px tall) the board goes left and the panel right.
+- `.screen` pages scroll when content doesn't fit (auto margins, not justify-content:center, so the top is never clipped).
+- Wake lock during games (`useWakeLock`), vibrate on release / full power / your turn.
+- `npm run shots [-- --landscape]` needs `npm run dev`; writes PNGs to ./shots (gitignored) at 384×824 (S23 Ultra).
+
 ## Conventions
 - TypeScript strict everywhere, minimal dependencies.
 - Nicknames are only ever rendered as React text (auto-escaped) and are sanitized on the server.

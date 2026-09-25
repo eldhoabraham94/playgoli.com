@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { roomLink } from '../net/api';
 import type { RoomConnection } from '../net/useRoom';
 import { InviteButton, QrCode } from '../ui/Invite';
+import { marbleDot } from '../ui/marble';
 
 export function Lobby({ conn, room, onLeave }: { conn: RoomConnection; room: RoomSnapshot; onLeave: () => void }) {
   const link = roomLink(room.code);
@@ -25,7 +26,7 @@ export function Lobby({ conn, room, onLeave }: { conn: RoomConnection; room: Roo
 
   const row = (p: PublicMember) => (
     <li key={p.id} className={p.connected ? '' : 'away'}>
-      <span className="dot" style={{ background: p.color }} />
+      <span className="dot" style={marbleDot(p.color)} />
       <span className="pname">{p.name}</span>
       {p.id === room.you && <span className="tag">you</span>}
       {p.id === room.hostId && <span className="tag host">host</span>}

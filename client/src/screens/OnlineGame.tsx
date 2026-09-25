@@ -17,6 +17,7 @@ import { PlayerStrip } from '../ui/PlayerStrip';
 import { FloatingReactions, ReactionBar } from '../ui/Reactions';
 import { Results } from '../ui/Results';
 import { Toast, useToast } from '../ui/Toast';
+import { useWakeLock } from '../ui/useWakeLock';
 
 /** Slides go to the server at most this often (everyone else sees them). */
 const SLIDE_EVERY_MS = 100;
@@ -37,6 +38,13 @@ export function OnlineGame({ conn, room, onLeave }: { conn: RoomConnection; room
   }, [conn.lastTurn]);
 
   useEffect(() => () => clearTimeout(slideState.current.timer), []);
+
+  const myTurnNow = !!game && !anim && game.status === 'playing' && currentShooter(game) === room.you;
+  useWakeLock(room.phase === 'playing');
+  // A short buzz when it becomes your turn (phones that support it).
+  useEffect(() => {
+    if (myTurnNow) navigator.vibrate?.([25, 40, 25]);
+  }, [myTurnNow, game?.seq]);
 
   if (!game) return null;
 
@@ -118,11 +126,16 @@ export function OnlineGame({ conn, room, onLeave }: { conn: RoomConnection; room
 
   return (
     <div className="game">
-      <PlayerStrip
-        players={strip}
-        currentId={game.status === 'playing' ? shownShooter : null}
-        onPick={isHost ? setKickTarget : undefined}
-      />
+      <div className="game-top">
+        <PlayerStrip
+          players={strip}
+          currentId={game.status === 'playing' ? shownShooter : null}
+          onPick={isHost ? setKickTarget : undefined}
+        />
+        <button className="leave-btn" onClick={onLeave} aria-label="Leave game">
+          ✕
+        </button>
+      </div>
       <div className="board-area">
         <Board
           goli={game.goli}
@@ -142,13 +155,9 @@ export function OnlineGame({ conn, room, onLeave }: { conn: RoomConnection; room
       </div>
       <div className="status">
         <div className={`turn-line${myTurn ? ' mine' : ''}`}>{turnLine}</div>
-        <div className="msg">{!conn.connected ? 'Reconnecting…' : message || hint}</div>
-        {message && hint && <div className="msg hint">{hint}</div>}
+        <div className="msg">{!conn.connected ? 'Reconnecting…' : [message, hint].filter(Boolean).join(' · ')}</div>
         <ReactionBar onReact={(emoji) => send('react', { emoji })} />
       </div>
-      <button className="corner-btn" onClick={onLeave} aria-label="Leave">
-        ✕
-      </button>
 
       {kickName && kickTarget && (
         <div className="confirm-bar">

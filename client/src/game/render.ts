@@ -276,19 +276,19 @@ function makeShine(r: number, scale: number): HTMLCanvasElement {
   return c;
 }
 
+/** Soft cast shadow: wide and gentle so it reads as shade, not a second marble. */
 function makeShadow(r: number, scale: number): HTMLCanvasElement {
-  const half = r * 1.4;
+  const half = r * 1.7;
   const c = canvas(half * 2 * scale);
   const g = c.getContext('2d')!;
   g.scale(c.width / (half * 2), c.height / (half * 2));
   g.translate(half, half);
-  const sg = g.createRadialGradient(0, 0, r * 0.3, 0, 0, r * 1.3);
-  sg.addColorStop(0, 'rgba(25,8,2,0.55)');
+  const sg = g.createRadialGradient(0, 0, 0, 0, 0, half);
+  sg.addColorStop(0, 'rgba(25,8,2,0.38)');
+  sg.addColorStop(0.45, 'rgba(25,8,2,0.22)');
   sg.addColorStop(1, 'rgba(25,8,2,0)');
   g.fillStyle = sg;
-  g.beginPath();
-  g.arc(0, 0, r * 1.35, 0, Math.PI * 2);
-  g.fill();
+  g.fillRect(-half, -half, half * 2, half * 2);
   return c;
 }
 
@@ -296,11 +296,61 @@ export function goliLook(id: number) {
   return { glass: GLASS[id % GLASS.length], eye: EYES[(id * 3 + 1) % EYES.length] };
 }
 
+/** Tight dark spot right under the marble where it touches the soil. */
+function makeContact(r: number, scale: number): HTMLCanvasElement {
+  const half = r * 0.8;
+  const c = canvas(half * 2 * scale);
+  const g = c.getContext('2d')!;
+  g.scale(c.width / (half * 2), c.height / (half * 2));
+  g.translate(half, half);
+  const cg = g.createRadialGradient(0, 0, 0, 0, 0, half);
+  cg.addColorStop(0, 'rgba(18,5,1,0.75)');
+  cg.addColorStop(0.6, 'rgba(18,5,1,0.3)');
+  cg.addColorStop(1, 'rgba(18,5,1,0)');
+  g.fillStyle = cg;
+  g.fillRect(-half, -half, half * 2, half * 2);
+  return c;
+}
+
+/** Light focused through the glass onto the soil: a bright, tinted spot inside the shadow. */
+function makeCaustic(r: number, scale: number, glass: string): HTMLCanvasElement {
+  const half = r * 0.75;
+  const c = canvas(half * 2 * scale);
+  const g = c.getContext('2d')!;
+  g.scale(c.width / (half * 2), c.height / (half * 2));
+  g.translate(half, half);
+  const cg = g.createRadialGradient(0, 0, 0, 0, 0, half);
+  cg.addColorStop(0, 'rgba(255,248,225,0.85)');
+  cg.addColorStop(0.35, mix(glass, '#ffffff', 0.4, 0.45));
+  cg.addColorStop(1, mix(glass, '#ffffff', 0, 0));
+  g.fillStyle = cg;
+  g.fillRect(-half, -half, half * 2, half * 2);
+  return c;
+}
+
+interface Drawn {
+  x: number;
+  y: number;
+  r: number;
+  rot: number;
+  body: HTMLCanvasElement;
+  glass: string;
+}
+
 export class Renderer {
   private px = 0;
   private scale = 1;
   private ground: HTMLCanvasElement | null = null;
   private sprites = new Map<string, HTMLCanvasElement>();
+  /** How far a sphere's centre rises above its contact point on the tilted ground (× r). */
+  private lift: number;
+  /** Undo the tilt's vertical squash so marbles stay round on screen. */
+  private stretch: number;
+
+  constructor(tilt = 0) {
+    this.lift = Math.tan(tilt);
+    this.stretch = 1 / Math.cos(tilt);
+  }
 
   resize(px: number) {
     if (px === this.px) return;
@@ -316,18 +366,40 @@ export class Renderer {
     return s;
   }
 
-  private drawMarble(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, rot: number, body: HTMLCanvasElement) {
+  /** Everything a marble puts on the ground: soft shadow, contact spot, caustic. */
+  private drawGroundMarks(ctx: CanvasRenderingContext2D, m: Drawn) {
+    const { x, y, r } = m;
     const shadow = this.sprite(`shadow${r}`, () => makeShadow(r, this.scale));
+    const contact = this.sprite(`contact${r}`, () => makeContact(r, this.scale));
+    const caustic = this.sprite(`caustic${r}${m.glass}`, () => makeCaustic(r, this.scale, m.glass));
+    // Light from the upper left: the shadow falls down and to the right.
+    const sh = r * 1.7;
+    ctx.drawImage(shadow, x + r * 0.3 - sh, y + r * 0.4 - sh, sh * 2, sh * 2);
+    const ch = r * 0.7;
+    ctx.globalAlpha = 0.8;
+    ctx.drawImage(contact, x - ch, y - ch * 0.5, ch * 2, ch * 1.2);
+    ctx.globalAlpha = 1;
+    const ca = r * 0.75;
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.drawImage(caustic, x + r * 0.6 - ca, y + r * 0.7 - ca, ca * 2, ca * 2);
+    ctx.restore();
+  }
+
+  /** The sphere itself, lifted off the ground and kept round despite the tilt. */
+  private drawBody(ctx: CanvasRenderingContext2D, m: Drawn) {
+    const { x, y, r } = m;
     const shine = this.sprite(`shine${r}`, () => makeShine(r, this.scale));
-    const sh = r * 1.4;
-    ctx.drawImage(shadow, x + r * 0.28 - sh, y + r * 0.4 - sh, sh * 2, sh * 2);
     const h = r + 1;
     ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(rot);
-    ctx.drawImage(body, -h, -h, h * 2, h * 2);
+    ctx.translate(x, y - r * this.lift);
+    ctx.scale(1, this.stretch);
+    ctx.save();
+    ctx.rotate(m.rot);
+    ctx.drawImage(m.body, -h, -h, h * 2, h * 2);
     ctx.restore();
-    ctx.drawImage(shine, x - h, y - h, h * 2, h * 2);
+    ctx.drawImage(shine, -h, -h, h * 2, h * 2);
+    ctx.restore();
   }
 
   draw(ctx: CanvasRenderingContext2D, scene: Scene) {
@@ -349,19 +421,24 @@ export class Renderer {
       ctx.restore();
     }
 
-    for (const m of scene.goli) {
+    const marbles: Drawn[] = scene.goli.map((m) => {
       const look = goliLook(m.id);
       const body = this.sprite(`goli${m.id % 42}`, () => makeMarble(GOLI_R, s, look.glass, look.eye, m.id + 1));
-      this.drawMarble(ctx, m.x, m.y, GOLI_R, m.rot, body);
-    }
-
+      return { x: m.x, y: m.y, r: GOLI_R, rot: m.rot, body, glass: look.glass };
+    });
     const st = scene.striker;
     if (st) {
-      if (scene.aim) this.drawAim(ctx, st.x, st.y, scene.aim.angle, scene.aim.power);
       const body = this.sprite(`striker${st.color}`, () => makeMarble(STRIKER_R, s, st.color, '#ffffff', 99));
-      this.drawMarble(ctx, st.x, st.y, STRIKER_R, st.rot, body);
-      if (scene.clock !== null) this.drawClock(ctx, st.x, st.y, scene.clock, scene.clockSecs);
+      marbles.push({ x: st.x, y: st.y, r: STRIKER_R, rot: st.rot, body, glass: st.color });
     }
+
+    // Ground first (shadows, the clock ring, aim guide), then spheres from far to near.
+    for (const m of marbles) this.drawGroundMarks(ctx, m);
+    if (st && scene.clock !== null) this.drawClockRing(ctx, st.x, st.y, scene.clock);
+    if (st && scene.aim) this.drawAim(ctx, st.x, st.y, scene.aim.angle, scene.aim.power);
+    marbles.sort((a, b) => a.y - b.y);
+    for (const m of marbles) this.drawBody(ctx, m);
+    if (st && scene.clockSecs !== null && scene.clockSecs <= 5) this.drawCountdown(ctx, st.x, st.y, scene.clockSecs);
   }
 
   private drawAim(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, power: number) {
@@ -394,26 +471,37 @@ export class Renderer {
     ctx.restore();
   }
 
-  private drawClock(ctx: CanvasRenderingContext2D, x: number, y: number, frac: number, secs: number | null) {
-    const r = STRIKER_R + 13;
+  /** Countdown ring lying on the ground around the striker. */
+  private drawClockRing(ctx: CanvasRenderingContext2D, x: number, y: number, frac: number) {
+    const r = STRIKER_R + 14;
     ctx.save();
     ctx.lineCap = 'round';
-    ctx.lineWidth = 6;
-    ctx.strokeStyle = 'rgba(30,10,4,0.45)';
+    ctx.lineWidth = 7;
+    ctx.strokeStyle = 'rgba(30,10,4,0.5)';
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.stroke();
     ctx.strokeStyle = frac > 0.5 ? '#8be28f' : frac > 0.25 ? '#f6c945' : '#ff5a4f';
+    ctx.shadowColor = ctx.strokeStyle;
+    ctx.shadowBlur = 10;
     ctx.beginPath();
     ctx.arc(x, y, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
     ctx.stroke();
-    if (secs !== null && secs <= 5) {
-      ctx.fillStyle = '#fff4e6';
-      ctx.font = '700 34px "Baloo Chettan 2", system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(String(secs), x, y - r - 26);
-    }
+    ctx.restore();
+  }
+
+  /** Last seconds, floating upright above the striker. */
+  private drawCountdown(ctx: CanvasRenderingContext2D, x: number, y: number, secs: number) {
+    ctx.save();
+    ctx.translate(x, y - STRIKER_R * this.lift - STRIKER_R - 34);
+    ctx.scale(1, this.stretch);
+    ctx.font = '800 40px "Baloo Chettan 2", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(30,10,4,0.55)';
+    ctx.fillText(String(secs), 2, 3);
+    ctx.fillStyle = '#fff4e6';
+    ctx.fillText(String(secs), 0, 0);
     ctx.restore();
   }
 }

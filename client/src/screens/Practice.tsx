@@ -19,6 +19,8 @@ import { bigMoment, describeShot } from '../game/describe';
 import { PlayerStrip } from '../ui/PlayerStrip';
 import { Results } from '../ui/Results';
 import { Toast, useToast } from '../ui/Toast';
+import { useWakeLock } from '../ui/useWakeLock';
+import { marbleDot } from '../ui/marble';
 
 interface LocalPlayer {
   id: string;
@@ -65,6 +67,7 @@ function LocalGame({ count, onExit, onRestart }: { count: number; onExit: () => 
   const [anim, setAnim] = useState<ShotResult | null>(null);
   const [deadline, setDeadline] = useState<number | null>(null);
   const [toast, showToast] = useToast();
+  useWakeLock(true);
   const [message, setMessage] = useState('Drag the ground to slide the striker. Pull back on it and let go to shoot.');
 
   const byId = (id: string | null) => players.find((p) => p.id === id);
@@ -107,7 +110,12 @@ function LocalGame({ count, onExit, onRestart }: { count: number; onExit: () => 
 
   return (
     <div className="game">
-      <PlayerStrip players={ordered} currentId={anim ? anim.shooterId : shooterId} />
+      <div className="game-top">
+        <PlayerStrip players={ordered} currentId={anim ? anim.shooterId : shooterId} />
+        <button className="leave-btn" onClick={onExit} aria-label="Leave practice">
+          ✕
+        </button>
+      </div>
       <div className="board-area">
       <Board
         goli={game.goli}
@@ -126,15 +134,12 @@ function LocalGame({ count, onExit, onRestart }: { count: number; onExit: () => 
       <div className="status">
         {shooter && !anim && (
           <div className="turn-line">
-            <span className="dot small" style={{ background: shooter.color }} /> <b>{shooter.name}</b>'s shot{' '}
+            <span className="dot small" style={marbleDot(shooter.color)} /> <b>{shooter.name}</b>'s shot{' '}
             {game.shotInTurn + 1}/{MAX_SHOTS_PER_TURN}
           </div>
         )}
         <div className="msg">{message}</div>
       </div>
-      <button className="corner-btn" onClick={onExit} aria-label="Leave">
-        ✕
-      </button>
       {game.status === 'over' && !anim && (
         <Results
           rows={players.map((p) => ({

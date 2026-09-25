@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Pouch } from './Pouch';
 import { shareOrCopy } from './share';
+import { marbleDot } from './marble';
 
 export interface ResultRow {
   id: string;
@@ -52,7 +53,7 @@ export function Results({ rows, link, children }: { rows: ResultRow[]; link?: st
             <li key={p.id} className={`${p.winner ? 'winner' : ''}${p.you ? ' me' : ''}`}>
               <span className="place">{MEDALS[place(i)] ?? place(i) + 1}</span>
               <span className="rank-name">
-                <span className="dot small" style={{ background: p.color }} /> {p.name}
+                <span className="dot small" style={marbleDot(p.color)} /> {p.name}
                 {p.you && <span className="tag">you</span>}
               </span>
               <b>{p.pouch.length}</b>

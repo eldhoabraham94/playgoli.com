@@ -38,29 +38,65 @@ const MIN_POWER = 0.04;
 const GRAB_R = 95;
 const STRIKER_KEY = -1;
 
+/**
+ * 3D view: the ground is a slab tilted back by TILT, seen with perspective
+ * distance PERSP × board size, with an earth edge SLAB × size thick.
+ */
+const TILT = (24 * Math.PI) / 180;
+const PERSP = 3;
+const SLAB = 0.12;
+const SIN = Math.sin(TILT);
+const COS = Math.cos(TILT);
+
+/** Projected extents of a unit-size tilted board (all scale linearly with size). */
+const GEO = (() => {
+  const k = PERSP;
+  const proj = (y: number, z: number) => {
+    // CSS rotateX(TILT): y' = y cos − z sin, z' = y sin + z cos; then perspective k.
+    const yr = y * COS - z * SIN;
+    const zr = y * SIN + z * COS;
+    return (yr * k) / (k - zr);
+  };
+  const top = proj(-0.5, 0);
+  const bottom = proj(0.5, -SLAB);
+  const halfWidth = (0.5 * k) / (k - 0.5 * SIN); // near (bottom) edge is widest
+  return { width: 2 * halfWidth, height: bottom - top, centreShift: -(top + bottom) / 2 };
+})();
+
 export function Board(props: BoardProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const live = useRef(props);
   live.current = props;
 
   useEffect(() => {
     const canvas = canvasRef.current!;
+    const stage = stageRef.current!;
     const box = wrapRef.current!;
     const ctx = canvas.getContext('2d')!;
-    const renderer = new Renderer();
+    const renderer = new Renderer(TILT);
     const rot = new Map<number, number>();
     const lastPos = new Map<number, { x: number; y: number }>();
+    const view = { size: 0, persp: 0, shift: 0 };
     let anim: { shot: ShotResult; sim: Sim; acc: number; done: boolean } | null = null;
     let pointer: { id: number; mode: 'slide' | 'aim'; downX: number; downY: number } | null = null;
     let aim: { angle: number; power: number } | null = null;
     let prevT = performance.now();
     let raf = 0;
 
+    // Size from the container only (never from the canvas itself), so the board always fits.
     const resize = () => {
-      const size = Math.max(120, Math.floor(Math.min(box.clientWidth, box.clientHeight)));
+      const w = box.clientWidth;
+      const h = box.clientHeight;
+      const size = Math.max(120, Math.floor(Math.min(w / GEO.width, h / GEO.height) * 0.985));
+      view.size = size;
+      view.persp = size * PERSP;
+      view.shift = size * GEO.centreShift;
+      stage.style.width = stage.style.height = `${size}px`;
+      stage.style.transform = `translateY(${view.shift}px) perspective(${view.persp}px) rotateX(${TILT}rad)`;
+      box.style.setProperty('--board', `${size}px`);
       const dpr = Math.min(2, window.devicePixelRatio || 1);
-      canvas.style.width = canvas.style.height = `${size}px`;
       const px = Math.round(size * dpr);
       if (canvas.width !== px) canvas.width = canvas.height = px;
       renderer.resize(px);
@@ -141,14 +177,23 @@ export function Board(props: BoardProps) {
         clockSecs,
         time: t,
       });
-      canvas.style.cursor = p.canAim && !anim ? 'grab' : 'default';
+      box.classList.toggle('can-aim', p.canAim && !anim);
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
 
+    /**
+     * Screen point → board coordinates, undoing the perspective tilt.
+     * Forward: (x, y) → (x, y·cos)·P / (P − y·sin), around the stage centre.
+     */
     const toLogical = (e: PointerEvent) => {
-      const r = canvas.getBoundingClientRect();
-      return { x: ((e.clientX - r.left) / r.width) * BOARD, y: ((e.clientY - r.top) / r.height) * BOARD };
+      const r = box.getBoundingClientRect();
+      const X = e.clientX - (r.left + r.width / 2);
+      const Y = e.clientY - (r.top + r.height / 2 + view.shift);
+      const P = view.persp;
+      const y = (Y * P) / (P * COS + Y * SIN);
+      const x = (X * (P - y * SIN)) / P;
+      return { x: (x / view.size + 0.5) * BOARD, y: (y / view.size + 0.5) * BOARD };
     };
     const slideTo = (pt: { x: number; y: number }) => {
       live.current.onSlide?.(Math.atan2(pt.y - CENTER, pt.x - CENTER));
@@ -167,7 +212,7 @@ export function Board(props: BoardProps) {
       pointer = { id: e.pointerId, mode, downX: pt.x, downY: pt.y };
       aim = null;
       if (mode === 'slide') slideTo(pt);
-      canvas.setPointerCapture(e.pointerId);
+      box.setPointerCapture(e.pointerId);
       e.preventDefault();
     };
     const onMove = (e: PointerEvent) => {
@@ -181,12 +226,17 @@ export function Board(props: BoardProps) {
       const px = pointer.downX - pt.x;
       const py = pointer.downY - pt.y;
       const power = Math.min(1, Math.sqrt(px * px + py * py) / MAX_PULL);
+      const wasFull = (aim?.power ?? 0) >= 1;
       aim = power >= MIN_POWER ? { angle: Math.atan2(py, px), power } : null;
+      if (power >= 1 && !wasFull) navigator.vibrate?.(8);
     };
     const onUp = (e: PointerEvent) => {
       if (!pointer || e.pointerId !== pointer.id) return;
       const p = live.current;
-      if (pointer.mode === 'aim' && aim && p.canAim && !p.anim) p.onShoot?.(aim.angle, aim.power);
+      if (pointer.mode === 'aim' && aim && p.canAim && !p.anim) {
+        navigator.vibrate?.(15);
+        p.onShoot?.(aim.angle, aim.power);
+      }
       pointer = null;
       aim = null;
     };
@@ -195,23 +245,27 @@ export function Board(props: BoardProps) {
       aim = null;
     };
 
-    canvas.addEventListener('pointerdown', onDown);
-    canvas.addEventListener('pointermove', onMove);
-    canvas.addEventListener('pointerup', onUp);
-    canvas.addEventListener('pointercancel', onCancel);
+    box.addEventListener('pointerdown', onDown);
+    box.addEventListener('pointermove', onMove);
+    box.addEventListener('pointerup', onUp);
+    box.addEventListener('pointercancel', onCancel);
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
-      canvas.removeEventListener('pointerdown', onDown);
-      canvas.removeEventListener('pointermove', onMove);
-      canvas.removeEventListener('pointerup', onUp);
-      canvas.removeEventListener('pointercancel', onCancel);
+      box.removeEventListener('pointerdown', onDown);
+      box.removeEventListener('pointermove', onMove);
+      box.removeEventListener('pointerup', onUp);
+      box.removeEventListener('pointercancel', onCancel);
     };
   }, []);
 
   return (
     <div ref={wrapRef} className="board-wrap">
-      <canvas ref={canvasRef} className="board" />
+      <div className="board-shadow" />
+      <div ref={stageRef} className="board-stage">
+        <canvas ref={canvasRef} className="board" />
+        <div className="slab-front" style={{ height: `calc(var(--board) * ${SLAB})` }} />
+      </div>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { marbleDot } from './marble';
 
 export interface StripPlayer {
   id: string;
@@ -29,7 +30,7 @@ export function PlayerStrip({
         const cls = `chip${p.id === currentId ? ' active' : ''}${p.away ? ' away' : ''}${p.you ? ' you' : ''}`;
         const inner = (
           <>
-            <span className="dot" style={{ background: p.color }}>
+            <span className="dot" style={marbleDot(p.color)}>
               {p.count}
             </span>
             <span className="chip-name">{p.name}</span>
