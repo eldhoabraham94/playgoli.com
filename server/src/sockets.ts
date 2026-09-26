@@ -1,4 +1,4 @@
-import { isC2SEvent, parseC2S, type C2SEvent, type C2SPayload, type ErrorCode } from '@goli/shared';
+import { isC2SEvent, parseC2S, parseVoice, type C2SEvent, type C2SPayload, type ErrorCode } from '@goli/shared';
 import type { Server, Socket } from 'socket.io';
 import type { Config } from './config';
 import { TokenBucket } from './rateLimit';
@@ -7,6 +7,8 @@ import type { Room, RoomStore } from './rooms';
 export function attachSockets(io: Server, store: RoomStore, cfg: Config) {
   io.on('connection', (socket: Socket) => {
     const bucket = new TokenBucket(cfg.socketRate.burst, cfg.socketRate.perSec);
+    // Voice clips arrive about once a second; they get their own small allowance.
+    const voiceBucket = new TokenBucket(cfg.voiceRate.burst, cfg.voiceRate.perSec);
     let room: Room | null = null;
 
     const fail = (code: ErrorCode) => socket.emit('error', { code });
@@ -33,7 +35,7 @@ export function attachSockets(io: Server, store: RoomStore, cfg: Config) {
 
     // Unknown events still cost tokens, so junk can't be spammed for free.
     socket.onAny((event: string) => {
-      if (!isC2SEvent(event) && !bucket.take()) socket.disconnect(true);
+      if (event !== 'voice' && !isC2SEvent(event) && !bucket.take()) socket.disconnect(true);
     });
 
     const current = () => (room && store.get(room.code) === room ? room : null);
@@ -79,6 +81,12 @@ export function attachSockets(io: Server, store: RoomStore, cfg: Config) {
     });
 
     on('react', (d) => current()?.react(socket.id, d.emoji));
+
+    socket.on('voice', (payload: unknown) => {
+      if (!voiceBucket.take()) return;
+      const v = parseVoice(payload);
+      if (v) current()?.voice(socket.id, v.mime, v.data);
+    });
 
     on('leave', () => {
       current()?.leave(socket.id);

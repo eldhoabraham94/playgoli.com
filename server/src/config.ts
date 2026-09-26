@@ -22,6 +22,8 @@ export const config = {
   createLimit: { max: 10, windowMs: 10 * 60_000 },
   /** Messages per socket (token bucket). */
   socketRate: { burst: 30, perSec: 15 },
+  /** Voice clips per socket (one a second, a little slack). */
+  voiceRate: { burst: 6, perSec: 4 },
   /** Open sockets per IP (a whole school on one Wi-Fi still fits). */
   maxSocketsPerIp: 60,
   maxRooms: 5000,

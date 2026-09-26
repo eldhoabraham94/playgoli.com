@@ -17,7 +17,8 @@
     "bots": "npm run bots -w @goli/server --",
     "og": "node scripts/make-og.mjs",
     "start": "node server/dist/index.js",
-    "shots": "node scripts/shots.mjs"
+    "shots": "node scripts/shots.mjs",
+    "voicecheck": "node scripts/voice-check.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.7.4",

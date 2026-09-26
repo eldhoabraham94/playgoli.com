@@ -8,7 +8,7 @@
  */
 import { z } from 'zod';
 import { CODE_ALPHABET, CODE_LENGTH } from './code';
-import { REACTIONS, type Reaction } from './constants';
+import { REACTIONS, VOICE_MAX_BYTES, VOICE_MIMES, type Reaction, type VoiceMime } from './constants';
 import type { GameState, ShotResult } from './rules';
 
 const angle = z.number().finite().min(-100).max(100);
@@ -150,3 +150,24 @@ export const ERROR_TEXT: Record<ErrorCode, string> = {
   'not-over': 'The game is still going.',
   'server-error': 'Server hiccup. Try again.',
 };
+
+// ---- Voice (binary, so a hand-written guard instead of zod) ----
+
+export interface VoiceMsg {
+  from: string;
+  mime: VoiceMime;
+  /** One self-contained audio clip (ArrayBuffer in browsers, Buffer on the server). */
+  data: ArrayBuffer;
+}
+
+/** Validate an incoming `voice { mime, data }` payload: allowed mime, binary, not too big. */
+export function parseVoice(payload: unknown): { mime: VoiceMime; data: ArrayBuffer | ArrayBufferView } | null {
+  if (!payload || typeof payload !== 'object') return null;
+  const { mime, data } = payload as { mime?: unknown; data?: unknown };
+  if (typeof mime !== 'string' || !(VOICE_MIMES as readonly string[]).includes(mime)) return null;
+  const binary = data instanceof ArrayBuffer || ArrayBuffer.isView(data);
+  if (!binary) return null;
+  const size = (data as ArrayBuffer | ArrayBufferView).byteLength;
+  if (size === 0 || size > VOICE_MAX_BYTES) return null;
+  return { mime: mime as VoiceMime, data: data as ArrayBuffer | ArrayBufferView };
+}

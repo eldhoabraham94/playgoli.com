@@ -116,6 +116,35 @@ describe('server over real sockets', () => {
     expect(await limited).toEqual({ code: 'rate-limited' });
   });
 
+  it('voice: binary clips from the shooter reach the other player, rate-limited', async () => {
+    const code = await createRoom();
+    const a = client();
+    const b = client();
+    a.emit('join', { code, playerId: ID_A, nickname: 'A' });
+    await next<RoomSnapshot>(a, 'room');
+    b.emit('join', { code, playerId: ID_B, nickname: 'B' });
+    await next<RoomSnapshot>(a, 'room', (r) => r.players.length === 2);
+    const started = next<RoomSnapshot>(a, 'room', (r) => r.phase === 'playing');
+    a.emit('start');
+    const snap = await started;
+    const shooterId = currentShooter(snap.game!)!;
+    const [talker, listener] = shooterId === snap.you ? [a, b] : [b, a];
+
+    const heard: { from: string; mime: string; bytes: number }[] = [];
+    listener.on('voice', (m: { from: string; mime: string; data: ArrayBuffer }) =>
+      heard.push({ from: m.from, mime: m.mime, bytes: m.data.byteLength }),
+    );
+    const clip = new Uint8Array(1200).fill(7).buffer;
+    for (let i = 0; i < 12; i++) talker.emit('voice', { mime: 'audio/webm;codecs=opus', data: clip });
+    listener.emit('voice', { mime: 'audio/webm;codecs=opus', data: clip }); // not the shooter: dropped
+    await new Promise((r) => setTimeout(r, 300));
+
+    expect(heard.length).toBeGreaterThan(0);
+    expect(heard.length).toBeLessThanOrEqual(7); // burst 6 (+ a refill)
+    expect(heard[0]).toEqual({ from: shooterId, mime: 'audio/webm;codecs=opus', bytes: 1200 });
+    expect(heard.every((h) => h.from === shooterId)).toBe(true);
+  });
+
   it('two clients play a full game; every client re-simulates each shot to the exact server result', async () => {
     const code = await createRoom();
     const ids = [ID_A, ID_B];

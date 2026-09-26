@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { isRoomCode, makeRoomCode } from './code';
-import { NICK_MAX } from './constants';
-import { parseC2S } from './messages';
+import { NICK_MAX, VOICE_MAX_BYTES } from './constants';
+import { parseC2S, parseVoice } from './messages';
 import { FUN_NAMES } from './names';
 import { sanitizeNickname } from './nickname';
 
@@ -55,5 +55,19 @@ describe('client messages', () => {
     expect(parseC2S('join', { code: 'ABIO', playerId: id, nickname: 'x' })).toBeNull();
     expect(parseC2S('join', { code: 'ABCD', playerId: 'nope', nickname: 'x' })).toBeNull();
     expect(parseC2S('react', { emoji: '💩' })).toBeNull();
+  });
+});
+
+describe('voice payload guard', () => {
+  it('accepts a small binary clip with an allowed mime', () => {
+    expect(parseVoice({ mime: 'audio/webm;codecs=opus', data: new Uint8Array(100) })).not.toBeNull();
+    expect(parseVoice({ mime: 'audio/mp4', data: new ArrayBuffer(10) })).not.toBeNull();
+  });
+  it('rejects junk, wrong mimes, empty and oversized clips', () => {
+    expect(parseVoice(null)).toBeNull();
+    expect(parseVoice({ mime: 'text/html', data: new Uint8Array(10) })).toBeNull();
+    expect(parseVoice({ mime: 'audio/mp4', data: 'not binary' })).toBeNull();
+    expect(parseVoice({ mime: 'audio/mp4', data: new Uint8Array(0) })).toBeNull();
+    expect(parseVoice({ mime: 'audio/mp4', data: new Uint8Array(VOICE_MAX_BYTES + 1) })).toBeNull();
   });
 });

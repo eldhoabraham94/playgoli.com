@@ -13,10 +13,13 @@ export interface StripPlayer {
 export function PlayerStrip({
   players,
   currentId,
+  talkingId = null,
   onPick,
 }: {
   players: StripPlayer[];
   currentId: string | null;
+  /** Whose voice is playing right now. */
+  talkingId?: string | null;
   /** When set (host), chips are tappable. */
   onPick?: (id: string) => void;
 }) {
@@ -27,13 +30,20 @@ export function PlayerStrip({
   return (
     <div className="strip" ref={ref}>
       {players.map((p) => {
-        const cls = `chip${p.id === currentId ? ' active' : ''}${p.away ? ' away' : ''}${p.you ? ' you' : ''}`;
+        const cls = `chip${p.id === currentId ? ' active' : ''}${p.away ? ' away' : ''}${p.you ? ' you' : ''}${p.id === talkingId ? ' talking' : ''}`;
         const inner = (
           <>
             <span className="dot" style={marbleDot(p.color)}>
               {p.count}
             </span>
             <span className="chip-name">{p.name}</span>
+            {p.id === talkingId && (
+              <span className="bars" aria-label="talking">
+                <i />
+                <i />
+                <i />
+              </span>
+            )}
           </>
         );
         return onPick && !p.you ? (

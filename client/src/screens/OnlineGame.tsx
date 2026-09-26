@@ -18,6 +18,8 @@ import { Results } from '../ui/Results';
 import { Toast, useToast } from '../ui/Toast';
 import { useWakeLock } from '../ui/useWakeLock';
 import { useInGame } from '../ui/Scene';
+import { VoiceButtons } from '../ui/VoiceControls';
+import { VoiceSender } from '../net/voice';
 
 /** Slides go to the server at most this often (everyone else sees them). */
 const SLIDE_EVERY_MS = 100;
@@ -26,6 +28,10 @@ export function OnlineGame({ conn, room, onLeave }: { conn: RoomConnection; room
   const { game, anim, send } = conn;
   const [message, setMessage] = useState('');
   const [kickTarget, setKickTarget] = useState<string | null>(null);
+  const [micMuted, setMicMuted] = useState(false);
+  const [micError, setMicError] = useState(false);
+  const senderRef = useRef<VoiceSender | null>(null);
+  const meterRef = useRef<HTMLSpanElement>(null);
   const [toast, showToast] = useToast();
   const slideState = useRef<{ last: number; pending: number | null; timer: number }>({ last: 0, pending: null, timer: 0 });
 
@@ -46,6 +52,35 @@ export function OnlineGame({ conn, room, onLeave }: { conn: RoomConnection; room
   useEffect(() => {
     if (myTurnNow) navigator.vibrate?.([25, 40, 25]);
   }, [myTurnNow, game?.seq]);
+
+  // Voice: my mic is open for my whole turn, including while my shot rolls.
+  const myVoiceTurn =
+    !!game && conn.connected && ((game.status === 'playing' && currentShooter(game) === room.you) || anim?.shooterId === room.you);
+  const micLive = myVoiceTurn && conn.voiceOn && !micMuted && !micError;
+  const { sendVoice } = conn;
+  useEffect(() => {
+    if (!micLive) return;
+    const sender = new VoiceSender(sendVoice);
+    senderRef.current = sender;
+    let cancelled = false;
+    // A start that was cancelled (turn ended while the mic was opening) is not an error.
+    void sender.start().then((ok) => !ok && !cancelled && setMicError(true));
+    let raf = 0;
+    const meter = () => {
+      meterRef.current?.style.setProperty('--lvl', String(Math.min(1, sender.level() * 2.2)));
+      raf = requestAnimationFrame(meter);
+    };
+    raf = requestAnimationFrame(meter);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+      sender.stop();
+      senderRef.current = null;
+    };
+  }, [micLive, sendVoice]);
+  useEffect(() => {
+    if (conn.voiceOn) setMicError(false);
+  }, [conn.voiceOn]);
 
   if (!game) return null;
 
@@ -131,8 +166,10 @@ export function OnlineGame({ conn, room, onLeave }: { conn: RoomConnection; room
         <PlayerStrip
           players={strip}
           currentId={game.status === 'playing' ? shownShooter : null}
+          talkingId={conn.talkingId}
           onPick={isHost ? setKickTarget : undefined}
         />
+        <VoiceButtons conn={conn} />
         <button className="leave-btn" onClick={onLeave} aria-label="Leave game">
           ✕
         </button>
@@ -152,6 +189,26 @@ export function OnlineGame({ conn, room, onLeave }: { conn: RoomConnection; room
         />
         <FloatingReactions items={conn.reactions} who={byId} />
         <Toast toast={toast} />
+        {myVoiceTurn && conn.voiceOn && (
+          <div className={`live-pill${micLive ? ' on' : ''}`}>
+            {micError ? (
+              <span>🎙 Mic unavailable</span>
+            ) : micLive ? (
+              <>
+                <span className="rec-dot" />
+                <span>You're live</span>
+                <span className="meter" ref={meterRef} />
+              </>
+            ) : (
+              <span>🎙 Muted</span>
+            )}
+            {!micError && (
+              <button className="pill-btn" onClick={() => setMicMuted((m) => !m)}>
+                {micMuted ? 'Unmute' : 'Mute'}
+              </button>
+            )}
+          </div>
+        )}
         {watching > 0 && <div className="watching">👀 {watching}</div>}
       </div>
       <div className="status">

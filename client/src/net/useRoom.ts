@@ -11,10 +11,13 @@ import {
   type ShotResult,
   type SlideMsg,
   type TurnMsg,
+  type VoiceMime,
+  type VoiceMsg,
 } from '@goli/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
-import { getPlayerId } from './identity';
+import { getListenPref, getPlayerId, getVoicePref, setListenPref, setVoicePref } from './identity';
+import { VoicePlayer } from './voice';
 
 /** Errors that end the session (no auto-reconnect). */
 const FATAL: ErrorCode[] = ['room-not-found', 'room-full', 'bad-nickname', 'opened-elsewhere', 'kicked'];
@@ -48,6 +51,16 @@ export interface RoomConnection {
   predict: (shot: ShotResult) => void;
   /** Recent emoji reactions (each lives ~2.6 s). */
   reactions: FloatingReaction[];
+
+  /** Who is talking right now (their clips are playing), if anyone. */
+  talkingId: string | null;
+  sendVoice: (mime: VoiceMime, data: ArrayBuffer) => void;
+  /** I want my mic on during my turns (permission already granted). */
+  voiceOn: boolean;
+  setVoiceOn: (on: boolean) => void;
+  /** I want to hear the shooter. */
+  listen: boolean;
+  setListen: (on: boolean) => void;
 }
 
 export interface FloatingReaction extends ReactMsg {
@@ -76,6 +89,11 @@ export function useRoom(code: string, nickname: string): RoomConnection {
   const [lastTurn, setLastTurn] = useState<TurnMsg | null>(null);
   const [gameOver, setGameOver] = useState<GameOverMsg | null>(null);
   const [reactions, setReactions] = useState<FloatingReaction[]>([]);
+  const [talkingId, setTalkingId] = useState<string | null>(null);
+  const [voiceOn, setVoiceOnState] = useState(getVoicePref);
+  const [listen, setListenState] = useState(getListenPref);
+  const playerRef = useRef<VoicePlayer | null>(null);
+  playerRef.current ??= new VoicePlayer();
   const sockRef = useRef<Socket | null>(null);
   const animRef = useRef<ShotMsg | null>(null);
   const predicted = useRef<ShotMsg | null>(null);
@@ -126,6 +144,9 @@ export function useRoom(code: string, nickname: string): RoomConnection {
       } else setAnim(shot);
     });
     s.on('gameOver', (m: GameOverMsg) => setGameOver(m));
+    const player = playerRef.current!;
+    player.onTalking = setTalkingId;
+    s.on('voice', (m: VoiceMsg) => player.play(m));
     let reactKey = 0;
     s.on('react', (m: ReactMsg) => {
       const r = { ...m, key: ++reactKey };
@@ -169,6 +190,22 @@ export function useRoom(code: string, nickname: string): RoomConnection {
     setAnim(msg);
   }, []);
 
+  // Browsers allow sound only after a tap: unlock on every tap (cheap), e.g. Join / Start.
+  useEffect(() => {
+    const player = playerRef.current!;
+    const unlock = () => player.unlock();
+    addEventListener('pointerdown', unlock, { passive: true });
+    return () => {
+      removeEventListener('pointerdown', unlock);
+      player.close();
+    };
+  }, []);
+  useEffect(() => playerRef.current!.setMuted(!listen), [listen]);
+
+  const sendVoice = useCallback((mime: VoiceMime, data: ArrayBuffer) => {
+    sockRef.current?.emit('voice', { mime, data });
+  }, []);
+
   const setGame = useCallback((fn: (g: GameState) => GameState) => setGameState((g) => (g ? fn(g) : g)), []);
 
   return {
@@ -188,5 +225,17 @@ export function useRoom(code: string, nickname: string): RoomConnection {
     setGame,
     predict,
     reactions,
+    talkingId,
+    sendVoice,
+    voiceOn,
+    setVoiceOn: useCallback((on: boolean) => {
+      setVoicePref(on);
+      setVoiceOnState(on);
+    }, []),
+    listen,
+    setListen: useCallback((on: boolean) => {
+      setListenPref(on);
+      setListenState(on);
+    }, []),
   };
 }

@@ -91,6 +91,13 @@ dt = 1/240; each step: integrate → mark off-board bodies → pairwise collisio
 - Static screens (client/src/ui/Scene.tsx): `<Ambient/>` (drifting bokeh marbles + dust + glow) is mounted once in App and hidden via `body.in-game` (`useInGame()` in game screens). `<Hero size title/>` = the splash stage (Home lg with title; Join/Practice/errors sm). Lobby: `<Track/>` knock animation, rows `.anim-in`, Start `.pulse`, `<Hop/>` dots. Results: `<Rain/>` + staggered rows/pouch goli.
 - Scene CSS is scoped to `.splash-stage` (not `.splash`) and the glass marble `.sp` is global, so they work anywhere. Upright marbles use billboards (`.bb` counter-rotates the ground's sway); never put opacity on a preserve-3d element (it flattens), fade the leaves instead.
 
+## Voice (only the shooter talks)
+- Transport: ~1 s self-contained Opus clips (MediaRecorder stopped/restarted per clip) sent as binary `voice {mime, data}` over the game socket; the server relays them untouched. No WebRTC/TURN. One talker at a time → no echo, ~1 s latency is fine.
+- Server rules (`Room.voice`): only the current shooter, or the previous shooter for VOICE_GRACE_MS (4 s) after play passes (their cheer during their own shot). `parseVoice` guard (mime allowlist, ≤ 24 KB), own TokenBucket (6 burst, 4/s), relayed to everyone but the sender. maxHttpBufferSize 40 KB.
+- Client: client/src/net/voice.ts (`VoiceSender` with level meter + silence skip, `VoicePlayer` decode-and-queue, unlocked on any tap). Prefs in localStorage `goli.voice` (mic opt-in, set only after permission) and `goli.listen`. Mic opens for my whole turn incl. my shot's animation; "You're live" pill with Mute; sound bars on the talker's chip.
+- Mic needs https (or localhost). On the LAN dev URL (http) phones can listen but not talk.
+- `npm run voicecheck` (needs `npm run dev`): two headless Chrome players with Chrome's fake mic; asserts only the shooter is heard, never by themselves, and it follows the turn.
+
 ## Conventions
 - TypeScript strict everywhere, minimal dependencies.
 - Nicknames are only ever rendered as React text (auto-escaped) and are sanitized on the server.

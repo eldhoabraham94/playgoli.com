@@ -209,3 +209,52 @@ describe('kick and reactions', () => {
     ]);
   });
 });
+
+describe('voice relay (only the shooter talks)', () => {
+  const clip = new Uint8Array(500);
+  const mime = 'audio/webm;codecs=opus' as const;
+
+  it("relays the shooter's clips to everyone else, spectators included, never back to the sender", () => {
+    const { room, socketOf, events } = setup(3);
+    room.start('s0');
+    room.join(uuid(8), 'Watcher', 's8'); // mid-game → spectator
+    const shooter = currentShooter(room.game!)!;
+    const sock = socketOf(shooter);
+    expect(room.voice(sock, mime, clip)).toBe(true);
+    for (const s of ['s0', 's1', 's2', 's8'].filter((x) => x !== sock))
+      expect(events('voice', s)).toEqual([{ from: shooter, mime, data: clip }]);
+    expect(events('voice', sock)).toHaveLength(0);
+  });
+
+  it('drops clips from anyone who is not shooting', () => {
+    const { room, socketOf, events } = setup(3);
+    room.start('s0');
+    const shooter = currentShooter(room.game!)!;
+    const others = room.game!.order.filter((id) => id !== shooter);
+    for (const id of others) expect(room.voice(socketOf(id), mime, clip)).toBe(false);
+    expect(events('voice')).toHaveLength(0);
+  });
+
+  it('lets the previous shooter finish for a few seconds after their turn, then stops', () => {
+    const { room, socketOf } = setup(2);
+    room.start('s0');
+    const first = currentShooter(room.game!)!;
+    room.shoot(socketOf(first), { seq: room.game!.seq, angle: 0, power: 0.2 }); // a miss: turn passes
+    expect(currentShooter(room.game!)).not.toBe(first);
+    vi.advanceTimersByTime(3000);
+    expect(room.voice(socketOf(first), mime, clip)).toBe(true);
+    vi.advanceTimersByTime(1500);
+    expect(room.voice(socketOf(first), mime, clip)).toBe(false);
+  });
+
+  it('works after a timeout skip too, and not before the game starts', () => {
+    const { room, socketOf } = setup(2);
+    expect(room.voice('s0', mime, clip)).toBe(false);
+    room.start('s0');
+    const first = currentShooter(room.game!)!;
+    vi.advanceTimersByTime(15_000); // shot clock runs out
+    expect(currentShooter(room.game!)).not.toBe(first);
+    expect(room.voice(socketOf(first), mime, clip)).toBe(true);
+    expect(room.voice(socketOf(currentShooter(room.game!)!), mime, clip)).toBe(true);
+  });
+});

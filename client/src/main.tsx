@@ -34,4 +34,5 @@ function hideSplash() {
     }, wait);
   });
 }
-requestAnimationFrame(hideSplash);
+// A timer, not requestAnimationFrame: rAF is paused in background tabs.
+setTimeout(hideSplash, 0);

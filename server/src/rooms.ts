@@ -4,6 +4,7 @@ import {
   MAX_PLAYERS,
   MAX_SPECTATORS,
   NICK_MAX,
+  VOICE_GRACE_MS,
   PLAYER_COLORS,
   applyShot,
   currentShooter,
@@ -28,6 +29,7 @@ import {
   type SlideMsg,
   type TurnMsg,
   type TurnReason,
+  type VoiceMime,
 } from '@goli/shared';
 
 export const SPECTATOR_COLOR = '#b9a48f';
@@ -74,6 +76,9 @@ export class Room {
   /** Secrets of kicked members: they can't come back into this room. */
   private banned = new Set<string>();
   private lastReact = new Map<string, number>();
+  /** Who shot last, and until when their voice is still relayed. */
+  private prevShooter: string | null = null;
+  private prevShooterUntil = 0;
 
   constructor(
     readonly code: string,
@@ -192,6 +197,7 @@ export class Room {
   private remove(m: Member) {
     if (m.removeTimer) clearTimeout(m.removeTimer);
     this.lastReact.delete(m.id);
+    const shooterBefore = this.shooter();
     this.members = this.members.filter((x) => x !== m);
     if (m.role === 'player' && this.phase === 'lobby') this.fillSeats();
     if (this.hostId === m.id) this.handOverHost();
@@ -204,6 +210,7 @@ export class Room {
         this.sendTurn('left', m.id);
       }
     }
+    this.noteShooter(shooterBefore);
     this.checkEmpty();
     this.broadcast();
   }
@@ -263,6 +270,7 @@ export class Room {
   }
 
   private beginGame(players: Member[]) {
+    this.prevShooter = null;
     this.phase = 'playing';
     this.game = newGame(players.map((p) => p.id));
     this.startTurnClock(0);
@@ -286,6 +294,7 @@ export class Room {
     const r = applyShot(this.game, m.id, input);
     if (!r.ok) return r.error as ErrorCode;
     this.game = r.state;
+    this.noteShooter(m.id);
     if (r.state.status === 'over') {
       this.stopClock();
       this.sendAll('shot', { ...r.shot, clockMs: null } satisfies ShotMsg);
@@ -298,6 +307,32 @@ export class Room {
       this.sendAll('shot', { ...r.shot, clockMs: this.clockLeft() } satisfies ShotMsg);
     }
     return null;
+  }
+
+  /**
+   * Relay one voice clip from the current shooter (or the previous shooter, briefly,
+   * so their last words and cheers for their own shot get through) to everyone else.
+   */
+  voice(socketId: string, mime: VoiceMime, data: ArrayBuffer | ArrayBufferView): boolean {
+    const m = this.bySocket(socketId);
+    if (!m || !this.game) return false;
+    const isShooter = this.phase === 'playing' && this.shooter() === m.id;
+    const inGrace = this.prevShooter === m.id && Date.now() < this.prevShooterUntil;
+    if (!isShooter && !inGrace) return false;
+    this.sendAll('voice', { from: m.id, mime, data }, socketId);
+    return true;
+  }
+
+  private shooter(): string | null {
+    return this.game && this.phase === 'playing' ? currentShooter(this.game) : null;
+  }
+
+  /** Call after anything that may pass play on, with who was shooting before. */
+  private noteShooter(before: string | null) {
+    if (before && before !== this.shooter()) {
+      this.prevShooter = before;
+      this.prevShooterUntil = Date.now() + VOICE_GRACE_MS;
+    }
   }
 
   private finish() {
@@ -338,6 +373,7 @@ export class Room {
     const skipped = currentShooter(g)!;
     const away = !this.byId(skipped)?.socketId;
     this.game = skipTurn(g);
+    this.noteShooter(skipped);
     this.startTurnClock(0);
     this.sendTurn(away ? 'away' : 'timeout', skipped);
   }

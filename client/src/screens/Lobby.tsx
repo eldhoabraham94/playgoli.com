@@ -5,6 +5,7 @@ import type { RoomConnection } from '../net/useRoom';
 import { InviteButton, QrCode } from '../ui/Invite';
 import { marbleDot } from '../ui/marble';
 import { Hop, Track } from '../ui/Scene';
+import { VoiceSwitch } from '../ui/VoiceControls';
 
 export function Lobby({ conn, room, onLeave }: { conn: RoomConnection; room: RoomSnapshot; onLeave: () => void }) {
   const link = roomLink(room.code);
@@ -86,6 +87,7 @@ export function Lobby({ conn, room, onLeave }: { conn: RoomConnection; room: Roo
             <InviteButton link={link} />
           </div>
         </div>
+        <VoiceSwitch conn={conn} />
       </div>
 
       <div className="lobby-foot">

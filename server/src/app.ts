@@ -17,7 +17,8 @@ export function createApp(overrides: Partial<Config> = {}) {
   const httpServer = createServer((req, res) => handle(req, res));
   const io = new Server(httpServer, {
     serveClient: false,
-    maxHttpBufferSize: 10_000,
+    // Room for one voice clip (VOICE_MAX_BYTES) plus framing.
+    maxHttpBufferSize: 40_000,
     pingInterval: 10_000,
     pingTimeout: 8_000,
   });

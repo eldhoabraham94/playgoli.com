@@ -14,6 +14,7 @@ The Indian childhood marbles game, in the browser. Up to 10 friends join by link
 - A miss ends your turn. If your striker rolls off the ground it's a foul, and that also ends your turn.
 - You have 15 seconds per shot. The game ends when the ring is empty.
 - While you wait, send 😂 🔥 😱 👏 🙏. Late arrivals watch and get a seat next game.
+- **Voice:** switch on 🎙 Voice in the lobby (or the 🎙 button in the game). Your mic opens only on your turn, and everyone hears the shooter; tap 🔊 to mute others. Voice needs https, so it works on the live site (on the local Wi-Fi dev address, phones can listen but not talk).
 
 ## Run it locally
 
@@ -38,6 +39,7 @@ npm run dev          # server on :3000 + Vite on :5173
 | `npm run bots` | 10 bots + 3 spectators play 2 full games against `http://localhost:3000` (run `npm run dev` first). Options: `--url`, `--players`, `--spectators`, `--games`, `--realtime` (human-like pacing), `--self` (starts its own server) |
 | `npm run build` | Production build: `client/dist` + a single-file server `server/dist/index.js` |
 | `npm start` | Runs the production build on `PORT` (default 3000) |
+| `npm run voicecheck` | Two headless Chrome players with a fake mic check that only the shooter is heard (run `npm run dev` first) |
 | `npm run og` | Regenerates the link-preview image and icons in `client/public` |
 
 ## Deploy to Render

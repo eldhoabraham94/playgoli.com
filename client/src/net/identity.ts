@@ -3,6 +3,8 @@ import { randomName } from '@goli/shared';
 const KEY_ID = 'goli.playerId';
 const KEY_NICK = 'goli.nickname';
 const KEY_ROOM = 'goli.lastRoom';
+const KEY_VOICE = 'goli.voice';
+const KEY_LISTEN = 'goli.listen';
 
 // localStorage can throw (private mode, blocked storage); fall back to memory.
 const memory = new Map<string, string>();
@@ -57,4 +59,20 @@ export function getLastRoom(): string | null {
 }
 export function setLastRoom(code: string | null) {
   set(KEY_ROOM, code);
+}
+
+/** Mic on during my turns (only set after permission was granted). */
+export function getVoicePref(): boolean {
+  return get(KEY_VOICE) === '1';
+}
+export function setVoicePref(on: boolean) {
+  set(KEY_VOICE, on ? '1' : null);
+}
+
+/** Hear the shooter (on unless turned off). */
+export function getListenPref(): boolean {
+  return get(KEY_LISTEN) !== '0';
+}
+export function setListenPref(on: boolean) {
+  set(KEY_LISTEN, on ? null : '0');
 }

@@ -42,5 +42,13 @@ export const PLAYER_COLORS = [
   '#4361ee', // blue
 ] as const;
 
+// Voice: only the current shooter talks; short self-contained clips are relayed by the server.
+export const VOICE_CLIP_MS = 1000;
+export const VOICE_MAX_BYTES = 24_000;
+/** The previous shooter's last clips (e.g. cheering their own shot) still get through for this long. */
+export const VOICE_GRACE_MS = 4000;
+export const VOICE_MIMES = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4', 'audio/webm'] as const;
+export type VoiceMime = (typeof VOICE_MIMES)[number];
+
 export const REACTIONS = ['😂', '🔥', '😱', '👏', '🙏'] as const;
 export type Reaction = (typeof REACTIONS)[number];
