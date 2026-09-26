@@ -24,7 +24,7 @@ export function Legend({ compact = false }: { compact?: boolean }) {
           </span>
         );
       })}
-      {!compact && <span className="legend-note">Striker must end outside the ring</span>}
+      {!compact && <span className="legend-note">Knock them out of the ring. Striker off the ground = foul</span>}
     </div>
   );
 }

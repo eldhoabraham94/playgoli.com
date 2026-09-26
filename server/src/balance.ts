@@ -20,7 +20,6 @@ function play(players: number, seed: number) {
   let g: GameState = newGame(Array.from({ length: players }, (_, i) => `p${i}`), rng);
   let shots = 0;
   let fouls = 0;
-  let inRing = 0;
   let bonus = 0;
   let animS = 0;
   while (g.status === 'playing' && shots < 2000) {
@@ -31,20 +30,19 @@ function play(players: number, seed: number) {
     if (!r.ok) throw new Error(r.error);
     shots++;
     if (r.shot.foul) fouls++;
-    if (r.shot.foul === 'in-ring') inRing++;
     if (r.shot.bonus) bonus++;
     animS += r.shot.steps * DT + ANIM_BUFFER_MS / 1000;
     g = r.state;
   }
-  return { shots, fouls, inRing, bonus, minutes: (animS + shots * AIM_S) / 60, goli: g.values.length };
+  return { shots, fouls, bonus, minutes: (animS + shots * AIM_S) / 60, goli: g.values.length };
 }
 
 for (const players of [2, 4, 6, 10]) {
   const runs = Array.from({ length: 6 }, (_, i) => play(players, 1000 + i * 7 + players));
-  const avg = (k: 'shots' | 'fouls' | 'inRing' | 'bonus' | 'minutes') => runs.reduce((t, r) => t + r[k], 0) / runs.length;
+  const avg = (k: 'shots' | 'fouls' | 'bonus' | 'minutes') => runs.reduce((t, r) => t + r[k], 0) / runs.length;
   console.log(
     `${String(players).padStart(2)} players (${runs[0].goli} goli): ${avg('shots').toFixed(0)} shots, ` +
-      `${Math.round((avg('fouls') / avg('shots')) * 100)}% fouls (${Math.round((avg('inRing') / Math.max(1, avg('fouls'))) * 100)}% in-ring), ${avg('bonus').toFixed(1)} Raja bonuses, ` +
+      `${Math.round((avg('fouls') / avg('shots')) * 100)}% fouls, ${avg('bonus').toFixed(1)} Raja bonuses, ` +
       `~${avg('minutes').toFixed(1)} min with people (bot aims better than most)`,
   );
 }

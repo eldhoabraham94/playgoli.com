@@ -9,10 +9,10 @@ export const STRIKER_R = 28;
 // Physics — must stay identical on server and every client.
 // Rough laterite soil: strong rolling friction, and glass loses energy in the grit.
 export const DT = 1 / 240;
-export const FRICTION_A = 360;
-export const FRICTION_B = 1.05;
+export const FRICTION_A = 560;
+export const FRICTION_B = 1.6;
 export const STOP_SPEED = 3;
-export const RESTITUTION = 0.84;
+export const RESTITUTION = 0.6;
 export const MAX_SPEED = 1650;
 /** Hard cap on simulation length (20 s of game time). */
 export const MAX_SIM_STEPS = 240 * 20;

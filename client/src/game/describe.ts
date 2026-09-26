@@ -16,9 +16,7 @@ export function describeShot(shot: ShotResult, name: Namer): string {
   const you = who === 'You';
   const n = shot.knockedOut.length;
   const next = shot.after;
-  if (shot.foul === 'off-board') return `Foul! ${possessive(who)} striker left the ground. No points.`;
-  if (shot.foul === 'in-ring')
-    return `Foul! ${possessive(who)} striker stayed in the ring.${n ? ` ${n === 1 ? 'The goli goes' : `${n} goli go`} back in.` : ''}`;
+  if (shot.foul) return `Foul! ${possessive(who)} striker left the ground.${n ? ` ${n === 1 ? 'The goli goes' : `${n} goli go`} back in.` : ' No points.'}`;
   if (next.status === 'over') return n ? `${who} knocked out the last one (+${shot.points})!` : 'Ring is empty!';
   if (n === 0) return `${who} missed.`;
   if (shot.bonus) return `${who} got the Raja! +${shot.points} and one more shot.`;

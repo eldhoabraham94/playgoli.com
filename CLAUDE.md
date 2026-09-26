@@ -34,12 +34,12 @@ Status: all 5 phases done (v1). Deploy target: Render (render.yaml, Dockerfile).
 - Points by starting ring (`pointsAt`): <120 blue 3, <190 green 2, else white 1; Raja RAJA_POINTS=5. `GameState.values[id]`; `score()` sums pouch values; most points wins, ties share.
 - Turn order shuffled at start, then around the table. One shot per turn (MAX_SHOTS_PER_TURN=1).
 - Clean capture of the Raja → `bonus`: one more shot from where the striker stopped (not in hand).
-- Fouls score nothing and knocked-out goli go back in (`placeGoli`): striker off the board (`'off-board'`) or striker at rest inside the ring (`'in-ring'`).
+- Foul = striker off the board (`'off-board'`): scores nothing and knocked-out goli go back in (`placeGoli`). A striker stopping inside the ring is fine (the user removed that foul).
 - 15 s shot clock; timeout skips the turn. `seq` increments on every shot and turn change.
-- Difficulty is tuned with `npm run balance` (planning bot with aim wobble; ~5.6 min for 10 bots). The bot (server/src/bot.ts) imagines ~40 shots with the real physics and picks the best.
+- Difficulty is tuned with `npm run balance` (planning bot with aim wobble; ~5.7 min for 10 bots). The bot (server/src/bot.ts) imagines ~40 shots with the real physics and picks the best.
 
 ## Physics (must stay deterministic)
-dt = 1/240; each step: integrate → mark off-board bodies → pairwise collisions in index order (impulse, e=0.84, positional correction) → friction `speed -= (360 + 1.05*speed)*dt` (rough soil), stop below 3. Max shot speed 1650. Hard cap 4800 steps then freeze. `stepSim(sim, onHit?)` reports hits for dust/sound only.
+dt = 1/240; each step: integrate → mark off-board bodies → pairwise collisions in index order (impulse, e=0.6, positional correction) → friction `speed -= (560 + 1.6*speed)*dt` (rough soil), stop below 3. Max shot speed 1650. Hard cap 4800 steps then freeze. `stepSim(sim, onHit?)` reports hits for dust/sound only.
 
 ## Rooms & identity
 - Room code: 4 letters, no I/O. Rooms live in memory; deleted 30 min after nobody is connected.

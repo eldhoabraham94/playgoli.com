@@ -123,15 +123,32 @@ describe('rules', () => {
     expect(currentShooter(next.state)).toBe('b');
   });
 
-  it('foul: a striker that stops inside the ring scores nothing, and the goli go back in', () => {
+  it('a striker that stops inside the ring is fine: the capture counts', () => {
     const s: GameState = {
       ...twoPlayer(),
       goli: [{ id: 0, x: 500, y: 250 }, OTHER],
       striker: { x: 500, y: 420, inHand: false, angle: 0 },
     };
-    const r = ok(applyShot(s, 'a', { seq: s.seq, angle: -Math.PI / 2, power: 0.35 }));
+    const r = ok(applyShot(s, 'a', { seq: s.seq, angle: -Math.PI / 2, power: 0.55 }));
+    expect(Math.hypot(r.shot.strikerEnd.x - CENTER, r.shot.strikerEnd.y - CENTER)).toBeLessThan(RING_R);
     expect(r.shot.knockedOut).toEqual([0]);
-    expect(r.shot.foul).toBe('in-ring');
+    expect(r.shot.foul).toBeNull();
+    expect(r.shot.points).toBe(2);
+    expect(score(r.state, 'a')).toBe(2);
+    expect(r.state.goli.map((g) => g.id)).toEqual([1]);
+    expect(currentShooter(r.state)).toBe('b');
+  });
+
+  it('foul: goli knocked out on a shot whose striker leaves the ground go back in', () => {
+    // Glancing full-power hit: the goli is clipped out, the striker flies off the board.
+    const s: GameState = {
+      ...twoPlayer(),
+      goli: [{ id: 0, x: 500, y: 235 }, OTHER],
+      striker: { x: 540, y: 420, inHand: false, angle: 0 },
+    };
+    const r = ok(applyShot(s, 'a', { seq: s.seq, angle: -Math.PI / 2, power: 1 }));
+    expect(r.shot.knockedOut).toContain(0);
+    expect(r.shot.foul).toBe('off-board');
     expect(r.shot.points).toBe(0);
     expect(score(r.state, 'a')).toBe(0);
     expect(r.state.goli.map((g) => g.id).sort()).toEqual([0, 1]);

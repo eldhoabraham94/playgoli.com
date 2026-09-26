@@ -49,8 +49,8 @@ export interface ShotInput {
   power: number;
 }
 
-/** Striker left the ground, or stopped inside the ring: the shot scores nothing. */
-export type Foul = 'off-board' | 'in-ring';
+/** Striker left the ground: the shot scores nothing. */
+export type Foul = 'off-board';
 
 export interface ShotResult {
   seq: number;
@@ -175,10 +175,8 @@ export function applyShot(s: GameState, playerId: string, input: ShotInput): Sho
   const sim = runToRest(createSim(start, velocity, before));
 
   const sb = sim.bodies[0];
-  const sdx = sb.x - CENTER;
-  const sdy = sb.y - CENTER;
-  // The striker must end on the ground and outside the ring.
-  const foul: Foul | null = !sb.onBoard ? 'off-board' : sdx * sdx + sdy * sdy < RING_R * RING_R ? 'in-ring' : null;
+  // The striker must stay on the ground (stopping inside the ring is fine).
+  const foul: Foul | null = sb.onBoard ? null : 'off-board';
   const knockedOut: number[] = [];
   let remaining: GoliPos[] = [];
   before.forEach((g, i) => {
