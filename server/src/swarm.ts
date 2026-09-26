@@ -163,11 +163,13 @@ export async function runSwarm(opts: SwarmOptions): Promise<SwarmReport> {
       if (bot.game && JSON.stringify(bot.game.goli) !== JSON.stringify(s.before)) report.desyncs++;
       // ...and replaying it must land exactly on the server's result.
       const sim = runToRest(createSim(s.start, s.velocity, s.before));
-      const kept = new Set(s.after.goli.map((g) => g.id));
+      // Goli that went back in after a foul are placed by the rules, not the physics.
+      const out = new Set(s.knockedOut);
       const replay = s.before
         .map((g, j) => ({ id: g.id, x: sim.bodies[j + 1].x, y: sim.bodies[j + 1].y }))
-        .filter((g) => kept.has(g.id));
-      if (JSON.stringify(replay) !== JSON.stringify(s.after.goli)) report.mismatches++;
+        .filter((g) => !out.has(g.id));
+      const kept = s.after.goli.filter((g) => !out.has(g.id));
+      if (JSON.stringify(replay) !== JSON.stringify(kept)) report.mismatches++;
       if (sim.bodies[0].x !== s.strikerEnd.x || sim.bodies[0].y !== s.strikerEnd.y) report.mismatches++;
     };
 

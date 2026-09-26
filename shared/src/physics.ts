@@ -58,7 +58,10 @@ function moving(b: Body): boolean {
   return b.vx !== 0 || b.vy !== 0;
 }
 
-export function stepSim(sim: Sim): void {
+/** Called for each collision with the body indices and the impulse (for dust/sound; never affects results). */
+export type HitHook = (i: number, j: number, impulse: number) => void;
+
+export function stepSim(sim: Sim, onHit?: HitHook): void {
   const bodies = sim.bodies;
   const n = bodies.length;
 
@@ -93,11 +96,12 @@ export function stepSim(sim: Sim): void {
       const ny = dy / d;
       const vn = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
       if (vn < 0) {
-        const j = (-(1 + RESTITUTION) * vn) / (1 / a.m + 1 / b.m);
-        a.vx -= (j / a.m) * nx;
-        a.vy -= (j / a.m) * ny;
-        b.vx += (j / b.m) * nx;
-        b.vy += (j / b.m) * ny;
+        const imp = (-(1 + RESTITUTION) * vn) / (1 / a.m + 1 / b.m);
+        a.vx -= (imp / a.m) * nx;
+        a.vy -= (imp / a.m) * ny;
+        b.vx += (imp / b.m) * nx;
+        b.vy += (imp / b.m) * ny;
+        if (onHit) onHit(i, j, imp);
       }
       // Push apart so they never stay overlapped (split by inverse mass).
       const overlap = minD - d;

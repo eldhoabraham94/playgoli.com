@@ -8,13 +8,14 @@ The Indian childhood marbles game, in the browser. Up to 10 friends join by link
 
 ## How to play
 
-- Each player puts 2 goli into the ring. Turn order is random, then goes around the table.
-- **Striker in hand:** drag anywhere on the ground to slide it along the dashed throw line. Then press on the striker, pull back like a catapult and let go. The further you pull, the harder it goes.
-- Knock one or more goli out of the ring and you keep them. Everyone gets **one shot per turn**, then play passes on.
-- A miss ends your turn. If your striker rolls off the ground it's a foul, and that also ends your turn.
-- You have 15 seconds per shot. The game ends when the ring is empty.
+- Each player puts 2 goli into the ring, and the red **Raja** sits in the centre. Turn order is random, then goes around the table.
+- **Points by ring:** ⚪ outer = 1, 🟢 middle = 2, 🔵 near the centre = 3, 🔴 Raja = 5 **and one more shot** (from where your striker stopped).
+- **Striker in hand:** drag anywhere on the ground to slide it along the dashed throw line. Then press on the striker, pull back like a catapult and let go. The further you pull, the harder it goes. The aim arrow is short; you judge the line yourself.
+- Everyone gets **one shot per turn** (plus the Raja bonus). Knock goli out of the ring to keep them.
+- **Fouls score nothing, and the goli go back into the ring:** your striker leaves the ground, or it stops **inside** the ring. Hit hard enough to carry the striker out.
+- You have 15 seconds per shot. The game ends when the ring is empty; **most points wins**.
 - While you wait, send 😂 🔥 😱 👏 🙏. Late arrivals watch and get a seat next game.
-- **Voice:** switch on 🎙 Voice in the lobby (or the 🎙 button in the game). Your mic opens only on your turn, and everyone hears the shooter; tap 🔊 to mute others. Voice needs https, so it works on the live site (on the local Wi-Fi dev address, phones can listen but not talk).
+- **Voice:** switch on 🎙 Voice in the lobby (or the 🎙 button in the game). Your mic opens only on your turn, and everyone hears the shooter; tap 🔊 to mute sound. Voice needs https, so it works on the live site (on the local Wi-Fi dev address, phones can listen but not talk).
 
 ## Run it locally
 
@@ -40,6 +41,7 @@ npm run dev          # server on :3000 + Vite on :5173
 | `npm run build` | Production build: `client/dist` + a single-file server `server/dist/index.js` |
 | `npm start` | Runs the production build on `PORT` (default 3000) |
 | `npm run voicecheck` | Two headless Chrome players with a fake mic check that only the shooter is heard (run `npm run dev` first) |
+| `npm run balance` | Plays many bot games offline and reports shots, fouls and estimated minutes per game size (for tuning difficulty) |
 | `npm run og` | Regenerates the link-preview image and icons in `client/public` |
 
 ## Deploy to Render

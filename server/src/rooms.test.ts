@@ -126,7 +126,7 @@ describe('Room', () => {
     expect(room.start('nobody')).toBe('not-joined');
     expect(room.start('s1')).toBeNull();
     expect(room.phase).toBe('playing');
-    expect(room.game?.goli).toHaveLength(4);
+    expect(room.game?.goli).toHaveLength(5); // 2 each + the Raja
     expect(room.start('s1')).toBe('already-started');
   });
 

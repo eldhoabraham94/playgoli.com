@@ -1,7 +1,13 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { setSoundOn, unlockAudio } from './net/audio';
+import { getListenPref } from './net/identity';
 import './styles.css';
+
+// Browsers only play sound after a tap; any tap unlocks it.
+addEventListener('pointerdown', unlockAudio, { passive: true });
+setSoundOn(getListenPref());
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

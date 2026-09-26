@@ -1304,3 +1304,47 @@ canvas.board {
 .chip.talking {
   border-color: var(--accent);
 }
+
+/* ---------------------------------------------------------------- points legend */
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 6px 12px;
+  font-family: 'Baloo Chettan 2', system-ui, sans-serif;
+  font-size: 0.9rem;
+  color: var(--cream);
+}
+.legend.compact {
+  gap: 10px;
+  font-size: 0.78rem;
+  margin-top: 2px;
+  color: var(--muted);
+}
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.legend .mini-goli {
+  width: 13px;
+  height: 13px;
+}
+.legend.compact .mini-goli {
+  width: 11px;
+  height: 11px;
+}
+.legend-note {
+  flex-basis: 100%;
+  text-align: center;
+  font-family: 'Manjari', system-ui, sans-serif;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.pts small {
+  font-weight: 400;
+  font-size: 0.7em;
+  color: var(--muted);
+}

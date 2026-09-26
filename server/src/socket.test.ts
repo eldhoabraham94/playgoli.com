@@ -174,9 +174,10 @@ describe('server over real sockets', () => {
         const sim = runToRest(createSim(shot.start, shot.velocity, shot.before));
         const replay = shot.before
           .map((g, j) => ({ id: g.id, x: sim.bodies[j + 1].x, y: sim.bodies[j + 1].y }))
-          .filter((g) => shot.after.goli.some((a) => a.id === g.id));
+          .filter((g) => !shot.knockedOut.includes(g.id));
         // ...and it must land exactly where the server says.
-        if (JSON.stringify(replay) !== JSON.stringify(shot.after.goli)) p.mismatches++;
+        const kept = shot.after.goli.filter((g) => !shot.knockedOut.includes(g.id));
+        if (JSON.stringify(replay) !== JSON.stringify(kept)) p.mismatches++;
         if (sim.bodies[0].x !== shot.strikerEnd.x || sim.bodies[0].y !== shot.strikerEnd.y) p.mismatches++;
         p.shots.push(shot);
         p.game = shot.after;

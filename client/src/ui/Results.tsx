@@ -9,33 +9,45 @@ export interface ResultRow {
   name: string;
   color: string;
   pouch: number[];
+  points: number;
   winner: boolean;
   you?: boolean;
 }
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
-/** "I won Goli with 7 goli! Play: <link>" and friends. */
+/** "I won Goli with 12 points! Play: <link>" and friends. */
 export function resultText(rows: ResultRow[], link: string): string {
   const winners = rows.filter((r) => r.winner);
-  const best = winners[0]?.pouch.length ?? 0;
+  const best = winners[0]?.points ?? 0;
   const me = rows.find((r) => r.you);
   const play = `Play: ${link}`;
   if (me?.winner) {
     return winners.length > 1
-      ? `I tied for the win in Goli with ${best} goli! ${play}`
-      : `I won Goli with ${best} goli! ${play}`;
+      ? `I tied for the win in Goli with ${best} points! ${play}`
+      : `I won Goli with ${best} points! ${play}`;
   }
   const names = winners.map((w) => w.name).join(' & ');
-  if (me) return `I got ${me.pouch.length} goli in Goli. ${names} won with ${best}! ${play}`;
-  return `${names} won Goli with ${best} goli! ${play}`;
+  if (me) return `I got ${me.points} points in Goli. ${names} won with ${best}! ${play}`;
+  return `${names} won Goli with ${best} points! ${play}`;
 }
 
-export function Results({ rows, link, children }: { rows: ResultRow[]; link?: string; children: ReactNode }) {
+export function Results({
+  rows,
+  values,
+  link,
+  children,
+}: {
+  rows: ResultRow[];
+  /** Points per goli id, for the pouch colours. */
+  values: number[];
+  link?: string;
+  children: ReactNode;
+}) {
   const [copied, setCopied] = useState(false);
-  const sorted = [...rows].sort((a, b) => b.pouch.length - a.pouch.length);
+  const sorted = [...rows].sort((a, b) => b.points - a.points);
   // Standard competition ranking: ties share a place.
-  const place = (i: number) => sorted.findIndex((r) => r.pouch.length === sorted[i].pouch.length);
+  const place = (i: number) => sorted.findIndex((r) => r.points === sorted[i].points);
 
   const share = async () => {
     if (!link) return;
@@ -62,8 +74,11 @@ export function Results({ rows, link, children }: { rows: ResultRow[]; link?: st
                 <span className="dot small" style={marbleDot(p.color)} /> {p.name}
                 {p.you && <span className="tag">you</span>}
               </span>
-              <b>{p.pouch.length}</b>
-              <Pouch ids={p.pouch} delay={0.5 + i * 0.12} />
+              <b className="pts">
+                {p.points}
+                <small> pts</small>
+              </b>
+              <Pouch ids={p.pouch} values={values} delay={0.5 + i * 0.12} />
             </li>
           ))}
         </ol>

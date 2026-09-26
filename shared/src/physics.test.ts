@@ -12,7 +12,7 @@ describe('physics', () => {
   });
 
   it('is bit-identical when run twice', () => {
-    const run = () => runToRest(createSim({ x: 500, y: 908 }, { vx: 123.456, vy: -1650 }, layoutGoli(20)));
+    const run = () => runToRest(createSim({ x: 500, y: 908 }, { vx: 123.456, vy: -1650 }, layoutGoli(20).goli));
     const a = run();
     const b = run();
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
@@ -20,7 +20,7 @@ describe('physics', () => {
   });
 
   it('comes to rest well within the step cap', () => {
-    const sim = runToRest(createSim({ x: 500, y: 908 }, { vx: 0, vy: -1650 }, layoutGoli(20)));
+    const sim = runToRest(createSim({ x: 500, y: 908 }, { vx: 0, vy: -1650 }, layoutGoli(20).goli));
     expect(isAtRest(sim)).toBe(true);
     expect(sim.steps).toBeLessThan(MAX_SIM_STEPS);
   });
@@ -37,7 +37,7 @@ describe('physics', () => {
   });
 
   it('never leaves bodies overlapping at rest', () => {
-    const sim = runToRest(createSim({ x: 500, y: 92 }, { vx: 0, vy: 1650 }, layoutGoli(20)));
+    const sim = runToRest(createSim({ x: 500, y: 92 }, { vx: 0, vy: 1650 }, layoutGoli(20).goli));
     const on = sim.bodies.filter((b) => b.onBoard);
     for (let i = 0; i < on.length; i++)
       for (let j = i + 1; j < on.length; j++) {
@@ -49,5 +49,17 @@ describe('physics', () => {
   it('marks bodies that leave the board', () => {
     const sim = runToRest(createSim({ x: 500, y: 950 }, { vx: 0, vy: 1650 }, []));
     expect(sim.bodies[0].onBoard).toBe(false);
+  });
+});
+
+describe('hit hook', () => {
+  it('reports collisions without changing the result', () => {
+    const plain = runToRest(createSim({ x: 500, y: 908 }, { vx: 40, vy: -1650 }, layoutGoli(20).goli));
+    const hits: number[] = [];
+    const sim = createSim({ x: 500, y: 908 }, { vx: 40, vy: -1650 }, layoutGoli(20).goli);
+    while (!isAtRest(sim) && sim.steps < MAX_SIM_STEPS) stepSim(sim, (_i, _j, imp) => hits.push(imp));
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits.every((h) => h > 0)).toBe(true);
+    expect(JSON.stringify(sim.bodies)).toBe(JSON.stringify(plain.bodies));
   });
 });

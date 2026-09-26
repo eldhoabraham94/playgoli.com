@@ -6,20 +6,25 @@ export const THROW_R = 408;
 export const GOLI_R = 22;
 export const STRIKER_R = 28;
 
-// Physics — must stay identical on server and every client
+// Physics — must stay identical on server and every client.
+// Rough laterite soil: strong rolling friction, and glass loses energy in the grit.
 export const DT = 1 / 240;
-export const FRICTION_A = 300;
-export const FRICTION_B = 0.9;
+export const FRICTION_A = 360;
+export const FRICTION_B = 1.05;
 export const STOP_SPEED = 3;
-export const RESTITUTION = 0.9;
+export const RESTITUTION = 0.84;
 export const MAX_SPEED = 1650;
 /** Hard cap on simulation length (20 s of game time). */
 export const MAX_SIM_STEPS = 240 * 20;
 
 // Rules
 export const GOLI_PER_PLAYER = 2;
-/** One attempt per player per turn: capture or not, play passes on. */
+/** One attempt per player per turn: capture or not, play passes on (the Raja earns one bonus shot). */
 export const MAX_SHOTS_PER_TURN = 1;
+/** Points by ring: outer white 1, middle green 2, inner blue 3. */
+export const GOLI_POINTS = { white: 1, green: 2, blue: 3 } as const;
+/** The red Raja in the very centre: worth this much and earns an extra shot. */
+export const RAJA_POINTS = 5;
 export const SHOT_CLOCK_MS = 15_000;
 /** A shooter who is disconnected gets this long before their turn is skipped. */
 export const AWAY_TURN_MS = 4_000;

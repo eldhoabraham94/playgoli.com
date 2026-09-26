@@ -50,7 +50,7 @@ export function VoiceButtons({ conn }: { conn: Conn }) {
         className={`icon-btn${conn.listen ? ' on' : ''}`}
         onClick={() => conn.setListen(!conn.listen)}
         aria-pressed={conn.listen}
-        aria-label={conn.listen ? 'Sound on: tap to mute others' : 'Sound off: tap to hear others'}
+        aria-label={conn.listen ? 'Sound on: tap to mute' : 'Sound off: tap for sound'}
       >
         {conn.listen ? '🔊' : '🔇'}
       </button>

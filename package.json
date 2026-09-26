@@ -18,7 +18,8 @@
     "og": "node scripts/make-og.mjs",
     "start": "node server/dist/index.js",
     "shots": "node scripts/shots.mjs",
-    "voicecheck": "node scripts/voice-check.mjs"
+    "voicecheck": "node scripts/voice-check.mjs",
+    "balance": "npm run balance -w @goli/server"
   },
   "devDependencies": {
     "@types/node": "^22.7.4",

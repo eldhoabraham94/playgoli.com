@@ -59,8 +59,10 @@ describe('online game (server referee)', () => {
     }
     expect(room.phase).toBe('over');
     expect(room.game!.goli).toHaveLength(0);
-    const total = room.game!.order.reduce((n, id) => n + score(room.game!, id), 0);
-    expect(total).toBe(4);
+    // Every goli ended up in someone's pouch, and the points add up.
+    const g = room.game!;
+    expect(g.order.reduce((n, id) => n + g.pouches[id].length, 0)).toBe(g.values.length);
+    expect(g.order.reduce((n, id) => n + score(g, id), 0)).toBe(g.values.reduce((a, b) => a + b, 0));
 
     const a = events<ShotMsg>('shot', 's0');
     const b = events<ShotMsg>('shot', 's1');
@@ -168,7 +170,7 @@ describe('online game (server referee)', () => {
     expect(room.playAgain('s0')).toBeNull();
     expect(room.phase).toBe('playing');
     expect(room.game!.order).toHaveLength(3);
-    expect(room.game!.goli).toHaveLength(6);
+    expect(room.game!.goli).toHaveLength(7); // 2 each + the Raja
     expect(room.spectators).toHaveLength(0);
     expect(room.playAgain('s0')).toBe('not-over');
   });

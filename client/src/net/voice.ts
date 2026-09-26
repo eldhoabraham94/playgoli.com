@@ -6,6 +6,7 @@
  * of latency is fine and there is no echo.
  */
 import { VOICE_CLIP_MS, VOICE_MAX_BYTES, VOICE_MIMES, type VoiceMime, type VoiceMsg } from '@goli/shared';
+import { getAudio, unlockAudio } from './audio';
 
 const MIC: MediaStreamConstraints = {
   audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
@@ -127,7 +128,6 @@ export class VoiceSender {
 }
 
 export class VoicePlayer {
-  private ctx: AudioContext | null = null;
   private nextAt = 0;
   private muted = false;
   private queue: Promise<void> = Promise.resolve();
@@ -138,12 +138,7 @@ export class VoicePlayer {
 
   /** Browsers only allow sound after a tap: call from a user gesture (any pointerdown). */
   unlock() {
-    try {
-      this.ctx ??= new AudioContext();
-      if (this.ctx.state === 'suspended') void this.ctx.resume();
-    } catch {
-      // No Web Audio: voice just stays silent.
-    }
+    unlockAudio();
   }
 
   setMuted(muted: boolean) {
@@ -158,7 +153,7 @@ export class VoicePlayer {
     this.talkTimer = window.setTimeout(() => this.onTalking(null), 1600);
     if (this.muted) return;
     this.unlock();
-    const ctx = this.ctx;
+    const ctx = getAudio();
     if (!ctx) return;
     // Decode in arrival order, then schedule back to back.
     this.queue = this.queue.then(async () => {
@@ -188,7 +183,5 @@ export class VoicePlayer {
 
   close() {
     clearTimeout(this.talkTimer);
-    void this.ctx?.close().catch(() => {});
-    this.ctx = null;
   }
 }

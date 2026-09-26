@@ -3,6 +3,7 @@ import {
   CENTER,
   DT,
   GOLI_R,
+  RING_R,
   STRIKER_R,
   createSim,
   freezeSim,
@@ -14,9 +15,16 @@ import {
 } from '@goli/shared';
 import { useEffect, useRef } from 'react';
 import { Renderer, type SceneMarble } from './render';
+import * as sfx from './sfx';
 
 export interface BoardProps {
   goli: GoliPos[];
+  /** Points per goli id (colours: white 1, green 2, blue 3, red Raja). */
+  values: number[];
+  /** Changes when a new game starts (clears the rolling marks). */
+  gameKey: string;
+  /** Buzz this phone on hits (it's this player's shot). */
+  buzz?: boolean;
   striker: { x: number; y: number; inHand: boolean } | null;
   strikerColor: string;
   /** It's this device's turn to shoot. */
@@ -76,6 +84,27 @@ export function Board(props: BoardProps) {
     const box = wrapRef.current!;
     const ctx = canvas.getContext('2d')!;
     const renderer = new Renderer(TILT);
+    let gameKey = '';
+    let inRing = new Set<number>();
+    let lastBuzz = 0;
+    const pan = (x: number) => (x - CENTER) / CENTER;
+    // Collisions: a puff of soil, a glass clack, and a buzz for the shooter.
+    const onHit = (i: number, j: number, impulse: number) => {
+      const bodies = anim?.sim.bodies;
+      if (!bodies) return;
+      const a = bodies[i];
+      const b = bodies[j];
+      const strength = Math.min(1, impulse / (a.m * 900));
+      const x = (a.x + b.x) / 2;
+      const y = (a.y + b.y) / 2;
+      renderer.puff(x, y, strength * 0.6);
+      sfx.clack(strength, pan(x));
+      const now = performance.now();
+      if (live.current.buzz && strength > 0.08 && now - lastBuzz > 80) {
+        lastBuzz = now;
+        navigator.vibrate?.(Math.round(8 + strength * 22));
+      }
+    };
     const rot = new Map<number, number>();
     const lastPos = new Map<number, { x: number; y: number }>();
     const view = { size: 0, persp: 0, shift: 0 };
@@ -120,21 +149,51 @@ export function Board(props: BoardProps) {
       const dt = Math.min(0.1, (t - prevT) / 1000);
       prevT = t;
 
+      if (p.gameKey !== gameKey) {
+        gameKey = p.gameKey;
+        renderer.clearMarks();
+      }
       if (!p.anim) anim = null;
       else if (anim?.shot !== p.anim) {
         anim = { shot: p.anim, sim: createSim(p.anim.start, p.anim.velocity, p.anim.before), acc: 0, done: false };
         pointer = null;
         aim = null;
+        // The striker is flicked down onto the soil.
+        renderer.puff(p.anim.start.x, p.anim.start.y, 0.5);
+        sfx.thud(0.5, pan(p.anim.start.x));
+        inRing = new Set(p.anim.before.map((g) => g.id));
       }
       if (anim && !anim.done) {
+        const sim = anim.sim;
+        const before = sim.bodies.map((b) => ({ x: b.x, y: b.y, on: b.onBoard }));
         anim.acc += dt;
-        while (anim.acc >= DT && !isSimDone(anim.sim)) {
-          stepSim(anim.sim);
+        while (anim.acc >= DT && !isSimDone(sim)) {
+          stepSim(sim, onHit);
           anim.acc -= DT;
         }
-        if (isSimDone(anim.sim)) {
-          freezeSim(anim.sim);
+        let speed = 0;
+        sim.bodies.forEach((b, i) => {
+          const was = before[i];
+          if (b.onBoard && (b.x !== was.x || b.y !== was.y)) {
+            renderer.trail(was.x, was.y, b.x, b.y, b.r);
+            speed += Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+          }
+          if (was.on && !b.onBoard) sfx.thud(0.3, pan(was.x));
+          const gi = i - 1;
+          if (i > 0 && inRing.has(anim!.shot.before[gi].id)) {
+            const dx = b.x - CENTER;
+            const dy = b.y - CENTER;
+            if (!b.onBoard || dx * dx + dy * dy > RING_R * RING_R) {
+              inRing.delete(anim!.shot.before[gi].id);
+              sfx.tock(pan(b.x));
+            }
+          }
+        });
+        sfx.rolling(Math.min(1, speed / 1400));
+        if (isSimDone(sim)) {
+          freezeSim(sim);
           anim.done = true;
+          sfx.rolling(0);
           p.onAnimDone?.();
         }
       }
@@ -150,12 +209,12 @@ export function Board(props: BoardProps) {
         goli = [];
         anim.shot.before.forEach((g, i) => {
           const b = bodies[i + 1];
-          if (b.onBoard) goli.push({ id: g.id, x: b.x, y: b.y, rot: spin(g.id, b.x, b.y, GOLI_R) });
+          if (b.onBoard) goli.push({ id: g.id, x: b.x, y: b.y, rot: spin(g.id, b.x, b.y, GOLI_R), value: p.values[g.id] ?? 1 });
         });
         const sb = bodies[0];
         if (sb.onBoard) striker = { x: sb.x, y: sb.y, rot: spin(STRIKER_KEY, sb.x, sb.y, STRIKER_R), color: p.strikerColor };
       } else {
-        goli = p.goli.map((g) => ({ id: g.id, x: g.x, y: g.y, rot: spin(g.id, g.x, g.y, GOLI_R) }));
+        goli = p.goli.map((g) => ({ id: g.id, x: g.x, y: g.y, rot: spin(g.id, g.x, g.y, GOLI_R), value: p.values[g.id] ?? 1 }));
         if (p.striker)
           striker = { x: p.striker.x, y: p.striker.y, rot: spin(STRIKER_KEY, p.striker.x, p.striker.y, STRIKER_R), color: p.strikerColor };
       }
@@ -168,7 +227,9 @@ export function Board(props: BoardProps) {
         clockSecs = Math.ceil(left / 1000);
       }
 
-      renderer.draw(ctx, {
+      renderer.draw(
+        ctx,
+        {
         goli,
         striker,
         throwLine: !anim && p.striker?.inHand ? p.strikerColor : null,
@@ -176,7 +237,9 @@ export function Board(props: BoardProps) {
         clock,
         clockSecs,
         time: t,
-      });
+        },
+        dt,
+      );
       box.classList.toggle('can-aim', p.canAim && !anim);
       raf = requestAnimationFrame(frame);
     };

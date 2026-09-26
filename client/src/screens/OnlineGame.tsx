@@ -19,6 +19,7 @@ import { Toast, useToast } from '../ui/Toast';
 import { useWakeLock } from '../ui/useWakeLock';
 import { useInGame } from '../ui/Scene';
 import { VoiceButtons } from '../ui/VoiceControls';
+import { Legend } from '../ui/Legend';
 import { VoiceSender } from '../net/voice';
 
 /** Slides go to the server at most this often (everyone else sees them). */
@@ -177,6 +178,9 @@ export function OnlineGame({ conn, room, onLeave }: { conn: RoomConnection; room
       <div className="board-area">
         <Board
           goli={game.goli}
+          values={game.values}
+          gameKey={game.order.join()}
+          buzz={anim?.shooterId === you}
           striker={game.status === 'playing' || anim ? game.striker : null}
           strikerColor={byId(shownShooter)?.color ?? '#ffffff'}
           canAim={myTurn}
@@ -214,6 +218,7 @@ export function OnlineGame({ conn, room, onLeave }: { conn: RoomConnection; room
       <div className="status">
         <div className={`turn-line${myTurn ? ' mine' : ''}`}>{turnLine}</div>
         <div className="msg">{!conn.connected ? 'Reconnecting…' : [message, hint].filter(Boolean).join(' · ')}</div>
+        <Legend compact />
         <ReactionBar onReact={(emoji) => send('react', { emoji })} />
       </div>
 
@@ -240,11 +245,13 @@ export function OnlineGame({ conn, room, onLeave }: { conn: RoomConnection; room
       {showResults && (
         <Results
           link={roomLink(room.code)}
+          values={game.values}
           rows={game.order.map((id) => ({
             id,
             name: byId(id)?.name ?? 'Left',
             color: byId(id)?.color ?? '#777',
             pouch: game.pouches[id] ?? [],
+            points: score(game, id),
             winner: winnerIds.includes(id),
             you: id === you,
           }))}

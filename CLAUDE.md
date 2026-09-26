@@ -30,17 +30,16 @@ Status: all 5 phases done (v1). Deploy target: Render (render.yaml, Dockerfile).
 
 ## Game rules (source of truth: shared/src/rules.ts)
 - Board 1000×1000, centre 500, ring r=285, throw line r=408. Goli r=22, striker r=28, mass=r².
-- Each player adds 2 goli; laid out as a non-overlapping cross inside the ring.
-- Turn order shuffled at start, then around the table. Each player's in-hand striker starts at their seat angle.
-- In hand: drag the ground to slide along the throw line; press the striker, pull back, release (power = pull distance, max pull 230 units).
-- Knock goli out (centre beyond r=285 at rest, or off the board) → keep them.
-- ONE shot per turn (MAX_SHOTS_PER_TURN = 1, user's choice): capture or miss, play passes. (The rules still support N>1: a capture then shoots again from where the striker stopped, not in hand.) Striker leaving the board = foul, ends the turn (goli knocked out on that shot are kept).
-- 15 s shot clock; timeout skips the turn.
-- Game over when the ring is empty. Most goli wins; ties share.
-- `seq` increments on every shot and turn change; a shot must quote the current seq.
+- Each player adds 2 goli, plus the red Raja (id = n, at the centre). `layoutGoli(n)` → { goli, values }: 4 arms (≤8 goli) or 8 arms, rings at r = 250·k/(perArm+0.5).
+- Points by starting ring (`pointsAt`): <120 blue 3, <190 green 2, else white 1; Raja RAJA_POINTS=5. `GameState.values[id]`; `score()` sums pouch values; most points wins, ties share.
+- Turn order shuffled at start, then around the table. One shot per turn (MAX_SHOTS_PER_TURN=1).
+- Clean capture of the Raja → `bonus`: one more shot from where the striker stopped (not in hand).
+- Fouls score nothing and knocked-out goli go back in (`placeGoli`): striker off the board (`'off-board'`) or striker at rest inside the ring (`'in-ring'`).
+- 15 s shot clock; timeout skips the turn. `seq` increments on every shot and turn change.
+- Difficulty is tuned with `npm run balance` (planning bot with aim wobble; ~5.6 min for 10 bots). The bot (server/src/bot.ts) imagines ~40 shots with the real physics and picks the best.
 
 ## Physics (must stay deterministic)
-dt = 1/240; each step: integrate → mark off-board bodies → pairwise collisions in index order (impulse, e=0.9, positional correction) → friction `speed -= (300 + 0.9*speed)*dt`, stop below 3. Max shot speed 1650. Hard cap 4800 steps then freeze.
+dt = 1/240; each step: integrate → mark off-board bodies → pairwise collisions in index order (impulse, e=0.84, positional correction) → friction `speed -= (360 + 1.05*speed)*dt` (rough soil), stop below 3. Max shot speed 1650. Hard cap 4800 steps then freeze. `stepSim(sim, onHit?)` reports hits for dust/sound only.
 
 ## Rooms & identity
 - Room code: 4 letters, no I/O. Rooms live in memory; deleted 30 min after nobody is connected.
@@ -97,6 +96,11 @@ dt = 1/240; each step: integrate → mark off-board bodies → pairwise collisio
 - Client: client/src/net/voice.ts (`VoiceSender` with level meter + silence skip, `VoicePlayer` decode-and-queue, unlocked on any tap). Prefs in localStorage `goli.voice` (mic opt-in, set only after permission) and `goli.listen`. Mic opens for my whole turn incl. my shot's animation; "You're live" pill with Mute; sound bars on the talker's chip.
 - Mic needs https (or localhost). On the LAN dev URL (http) phones can listen but not talk.
 - `npm run voicecheck` (needs `npm run dev`): two headless Chrome players with Chrome's fake mic; asserts only the shooter is heard, never by themselves, and it follows the turn.
+
+## Soil look and sound
+- render.ts builds the ground per pixel (fractal height field, sun-lit slopes, worn dusty play area, grit/pores) plus cracks, pebbles, grass tufts, leaves, a deep ring groove with kicked-up crumbs. A marks layer keeps rolling tracks for the game (cleared on a new `gameKey`); dust puffs on hits and when the striker lands.
+- Goli colour by value (`VALUE_GLASS`); the Raja has a pulsing gold ring. Aim guide is a short arrow.
+- Sounds are synthesised (client/src/game/sfx.ts): glass clack (by impulse, panned), gritty rolling, thud, tock when a goli crosses the ring. One shared AudioContext (net/audio.ts), unlocked on any tap; the 🔊 switch mutes voices and effects. The shooter's phone buzzes on hits.
 
 ## Conventions
 - TypeScript strict everywhere, minimal dependencies.

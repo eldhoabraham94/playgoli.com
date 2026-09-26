@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CENTER, GOLI_R, MAX_SHOTS_PER_TURN, RING_R, THROW_R } from './constants';
+import { CENTER, GOLI_R, RAJA_POINTS, RING_R, THROW_R } from './constants';
 import { layoutGoli, MAX_LAYOUT } from './layout';
 import {
   applyShot,
@@ -21,24 +21,25 @@ function seeded(seed: number) {
   };
 }
 
-/** Two-player game with a fixed order ['a', 'b']. */
+/** Two-player game with a fixed order ['a', 'b']. Values: ids 0-3 are green (2), id 4 is the Raja. */
 function twoPlayer(): GameState {
   const g = newGame(['a', 'b'], seeded(1));
   return { ...g, order: ['a', 'b'], turn: 0 };
 }
+const RAJA_ID = 4;
 
-/** Striker just inside the ring, one goli between it and the ring edge. */
-function captureSetup(s: GameState): GameState {
-  return {
-    ...s,
-    goli: [
-      { id: 0, x: 500, y: 250 },
-      { id: 1, x: 500, y: 700 },
-    ],
-    striker: { x: 500, y: 420, inHand: false, angle: 0 },
-  };
+/**
+ * A clean capture (found by searching the real physics): striker on the left of the throw
+ * line, a full-power shot that clips the goli at the top edge out of the ring and carries
+ * on out of the ring itself.
+ */
+function cleanCapture(s: GameState, targetId: number, extra: { id: number; x: number; y: number }[] = []) {
+  const set = { ...s, goli: [{ id: targetId, x: 500, y: 238 }, ...extra] };
+  const slid = slide(set, 'a', -Math.PI)!;
+  const angle = Math.atan2(238 - 500, 500 - 92) + (3 * Math.PI) / 180;
+  return { state: slid, input: { seq: slid.seq, angle, power: 1 } };
 }
-const CAPTURE_SHOT = { angle: -Math.PI / 2, power: 0.35 };
+const OTHER = { id: 1, x: 500, y: 700 };
 
 function ok(r: ShotOutcome) {
   if (!r.ok) throw new Error(r.error);
@@ -46,22 +47,34 @@ function ok(r: ShotOutcome) {
 }
 
 describe('layout', () => {
-  it('never overlaps and stays fully inside the ring for every count', () => {
+  it('never overlaps, stays inside the ring, and puts the Raja in the centre, for every count', () => {
     for (let n = 0; n <= MAX_LAYOUT; n++) {
-      const g = layoutGoli(n);
-      expect(g).toHaveLength(n);
-      for (const p of g) expect(Math.hypot(p.x - CENTER, p.y - CENTER) + GOLI_R).toBeLessThan(RING_R);
-      for (let i = 0; i < n; i++)
-        for (let j = i + 1; j < n; j++)
-          expect(Math.hypot(g[i].x - g[j].x, g[i].y - g[j].y)).toBeGreaterThanOrEqual(2 * GOLI_R);
+      const { goli, values } = layoutGoli(n);
+      expect(goli).toHaveLength(n + 1);
+      expect(values).toHaveLength(n + 1);
+      expect(goli[n]).toEqual({ id: n, x: CENTER, y: CENTER });
+      expect(values[n]).toBe(RAJA_POINTS);
+      for (const v of values.slice(0, n)) expect([1, 2, 3]).toContain(v);
+      for (const p of goli) expect(Math.hypot(p.x - CENTER, p.y - CENTER) + GOLI_R).toBeLessThan(RING_R);
+      for (let i = 0; i < goli.length; i++)
+        for (let j = i + 1; j < goli.length; j++)
+          expect(Math.hypot(goli[i].x - goli[j].x, goli[i].y - goli[j].y)).toBeGreaterThanOrEqual(2 * GOLI_R + 4);
     }
+  });
+
+  it('is worth more the deeper a goli sits', () => {
+    const { goli, values } = layoutGoli(20);
+    const d = (i: number) => Math.hypot(goli[i].x - CENTER, goli[i].y - CENTER);
+    for (let i = 0; i < 20; i++) for (let j = 0; j < 20; j++) if (d(i) < d(j) - 1) expect(values[i]).toBeGreaterThanOrEqual(values[j]);
+    expect(new Set(values.slice(0, 20))).toEqual(new Set([1, 2, 3]));
   });
 });
 
 describe('rules', () => {
-  it('starts with 2 goli per player and the striker in hand on the throw line', () => {
+  it('starts with 2 goli per player plus the Raja, and the striker in hand on the throw line', () => {
     const g = newGame(['a', 'b', 'c'], seeded(3));
-    expect(g.goli).toHaveLength(6);
+    expect(g.goli).toHaveLength(7);
+    expect(g.values).toHaveLength(7);
     expect(g.striker.inHand).toBe(true);
     expect(Math.hypot(g.striker.x - CENTER, g.striker.y - CENTER)).toBeCloseTo(THROW_R, 2);
     expect([...g.order].sort()).toEqual(['a', 'b', 'c']);
@@ -81,77 +94,76 @@ describe('rules', () => {
     }
   });
 
-  it('capture: knocked-out goli go to the shooter; with one attempt each, play passes on', () => {
-    const s = captureSetup(twoPlayer());
-    const r = ok(applyShot(s, 'a', { seq: s.seq, ...CAPTURE_SHOT }));
+  it('clean capture: the goli and its points go to the shooter, then play passes on', () => {
+    const { state, input } = cleanCapture(twoPlayer(), 0, [OTHER]);
+    const r = ok(applyShot(state, 'a', input));
     expect(r.shot.knockedOut).toEqual([0]);
-    expect(r.shot.foul).toBe(false);
-    expect(score(r.state, 'a')).toBe(1);
+    expect(r.shot.foul).toBeNull();
+    expect(r.shot.points).toBe(2);
+    expect(r.shot.bonus).toBe(false);
+    expect(score(r.state, 'a')).toBe(2);
     expect(r.state.goli.map((g) => g.id)).toEqual([1]);
-    expect(r.state.seq).toBe(s.seq + 1);
-    expect(MAX_SHOTS_PER_TURN).toBe(1);
-    expect(currentShooter(r.state)).toBe('b');
-    expect(r.state.shotInTurn).toBe(0);
-    expect(r.state.striker.inHand).toBe(true);
-  });
-
-  it('miss: turn passes and the next striker is in hand', () => {
-    const s = twoPlayer();
-    // From the bottom of the throw line, roll gently sideways: hits nothing.
-    const r = ok(applyShot(s, 'a', { seq: s.seq, angle: 0, power: 0.2 }));
-    expect(r.shot.knockedOut).toEqual([]);
-    expect(r.shot.foul).toBe(false);
     expect(currentShooter(r.state)).toBe('b');
     expect(r.state.striker.inHand).toBe(true);
-    expect(r.state.shotInTurn).toBe(0);
   });
 
-  it('foul: striker leaving the board ends the turn', () => {
-    const s = twoPlayer();
-    const r = ok(applyShot(s, 'a', { seq: s.seq, angle: Math.PI / 2, power: 1 }));
-    expect(r.shot.foul).toBe(true);
-    expect(r.shot.strikerEnd.onBoard).toBe(false);
-    expect(currentShooter(r.state)).toBe('b');
+  it('the Raja: 5 points and one extra shot from where the striker stopped', () => {
+    const { state, input } = cleanCapture(twoPlayer(), RAJA_ID, [OTHER]);
+    const r = ok(applyShot(state, 'a', input));
+    expect(r.shot.knockedOut).toEqual([RAJA_ID]);
+    expect(r.shot.points).toBe(RAJA_POINTS);
+    expect(r.shot.bonus).toBe(true);
+    expect(score(r.state, 'a')).toBe(RAJA_POINTS);
+    expect(currentShooter(r.state)).toBe('a');
+    expect(r.state.shotInTurn).toBe(1);
+    expect(r.state.striker).toMatchObject({ x: r.shot.strikerEnd.x, y: r.shot.strikerEnd.y, inHand: false });
+
+    // The bonus is a single shot: whatever it does, play then passes.
+    const next = ok(applyShot(r.state, 'a', { seq: r.state.seq, angle: 0, power: 0.1 }));
+    expect(currentShooter(next.state)).toBe('b');
   });
 
-  it('foul after a capture still ends the turn (goli are kept)', () => {
-    // Glancing hit at full power: the goli is clipped out, the striker flies on off the board.
+  it('foul: a striker that stops inside the ring scores nothing, and the goli go back in', () => {
     const s: GameState = {
       ...twoPlayer(),
-      goli: [
-        { id: 0, x: 500, y: 235 },
-        { id: 1, x: 500, y: 700 },
-      ],
-      striker: { x: 540, y: 420, inHand: false, angle: 0 },
+      goli: [{ id: 0, x: 500, y: 250 }, OTHER],
+      striker: { x: 500, y: 420, inHand: false, angle: 0 },
     };
-    const r = ok(applyShot(s, 'a', { seq: s.seq, angle: -Math.PI / 2, power: 1 }));
-    expect(r.shot.knockedOut).toContain(0);
-    expect(r.shot.foul).toBe(true);
-    expect(score(r.state, 'a')).toBeGreaterThan(0);
+    const r = ok(applyShot(s, 'a', { seq: s.seq, angle: -Math.PI / 2, power: 0.35 }));
+    expect(r.shot.knockedOut).toEqual([0]);
+    expect(r.shot.foul).toBe('in-ring');
+    expect(r.shot.points).toBe(0);
+    expect(score(r.state, 'a')).toBe(0);
+    expect(r.state.goli.map((g) => g.id).sort()).toEqual([0, 1]);
+    for (const g of r.state.goli) expect(Math.hypot(g.x - CENTER, g.y - CENTER)).toBeLessThan(RING_R);
     expect(currentShooter(r.state)).toBe('b');
   });
 
-  it(`caps a turn at ${MAX_SHOTS_PER_TURN} shots even if every shot captures`, () => {
-    let s = twoPlayer();
-    for (let shot = 1; shot <= MAX_SHOTS_PER_TURN; shot++) {
-      s = captureSetup({ ...s, goli: [] });
-      const r = ok(applyShot(s, 'a', { seq: s.seq, ...CAPTURE_SHOT }));
-      expect(r.shot.knockedOut).toEqual([0]);
-      s = r.state;
-      expect(currentShooter(s)).toBe(shot < MAX_SHOTS_PER_TURN ? 'a' : 'b');
-    }
-    expect(s.shotInTurn).toBe(0);
-    expect(s.striker.inHand).toBe(true);
-    expect(score(s, 'a')).toBe(MAX_SHOTS_PER_TURN);
+  it('foul: a striker that leaves the ground ends the turn', () => {
+    const s = twoPlayer();
+    const r = ok(applyShot(s, 'a', { seq: s.seq, angle: Math.PI / 2, power: 1 }));
+    expect(r.shot.foul).toBe('off-board');
+    expect(r.shot.strikerEnd.onBoard).toBe(false);
+    expect(r.shot.points).toBe(0);
+    expect(currentShooter(r.state)).toBe('b');
   });
 
-  it('game ends when the ring is empty; most goli wins, ties share', () => {
-    let s = twoPlayer();
-    s = { ...s, goli: [{ id: 0, x: 500, y: 250 }], striker: { x: 500, y: 420, inHand: false, angle: 0 } };
-    s = { ...s, pouches: { a: [], b: [5] } };
-    const r = ok(applyShot(s, 'a', { seq: s.seq, ...CAPTURE_SHOT }));
+  it('miss: a striker that stays outside the ring is fine, play passes on', () => {
+    const s = twoPlayer();
+    const r = ok(applyShot(s, 'a', { seq: s.seq, angle: 0, power: 0.2 }));
+    expect(r.shot.knockedOut).toEqual([]);
+    expect(r.shot.foul).toBeNull();
+    expect(currentShooter(r.state)).toBe('b');
+    expect(r.state.striker.inHand).toBe(true);
+  });
+
+  it('game ends when the ring is empty; most points wins, ties share', () => {
+    const base = { ...twoPlayer(), pouches: { a: [], b: [2] } }; // b already has 2 points
+    const { state, input } = cleanCapture(base, 0);
+    const r = ok(applyShot(state, 'a', input));
     expect(r.state.status).toBe('over');
     expect(currentShooter(r.state)).toBeNull();
+    expect(score(r.state, 'a')).toBe(2);
     expect(winners(r.state).sort()).toEqual(['a', 'b']);
   });
 
@@ -185,7 +197,7 @@ describe('rules', () => {
 describe('removePlayer', () => {
   it("returns the leaver's pouch to the ring without overlaps and fixes the turn index", () => {
     let s = newGame(['a', 'b', 'c'], seeded(2));
-    s = { ...s, order: ['a', 'b', 'c'], turn: 2, pouches: { a: [50, 51, 52], b: [], c: [] } };
+    s = { ...s, order: ['a', 'b', 'c'], turn: 2, goli: s.goli.slice(3), pouches: { a: [0, 1, 2], b: [], c: [] } };
     const t = removePlayer(s, 'a');
     expect(t.order).toEqual(['b', 'c']);
     expect(t.turn).toBe(1); // still c's turn

@@ -8,6 +8,7 @@ import {
   GOLI_PER_PLAYER,
   MAX_SHOTS_PER_TURN,
   MAX_SPEED,
+  RAJA_POINTS,
   RING_R,
   THROW_R,
 } from './constants';
@@ -33,6 +34,8 @@ export interface GameState {
   striker: Striker;
   /** Goli still in the ring. */
   goli: GoliPos[];
+  /** Points per goli, indexed by goli id (by starting ring; the Raja is RAJA_POINTS). */
+  values: number[];
   /** Goli ids each player has won. */
   pouches: Record<string, number[]>;
   /** Increments on every shot and turn change; shots must quote it. */
@@ -46,6 +49,9 @@ export interface ShotInput {
   power: number;
 }
 
+/** Striker left the ground, or stopped inside the ring: the shot scores nothing. */
+export type Foul = 'off-board' | 'in-ring';
+
 export interface ShotResult {
   seq: number;
   shooterId: string;
@@ -54,8 +60,13 @@ export interface ShotResult {
   /** Ring goli before the shot (what the animation starts from). */
   before: GoliPos[];
   strikerEnd: { x: number; y: number; onBoard: boolean };
+  /** Goli that left the ring (on a foul they go back in). */
   knockedOut: number[];
-  foul: boolean;
+  foul: Foul | null;
+  /** Points the shooter won with this shot. */
+  points: number;
+  /** Knocked out the Raja cleanly: one more shot. */
+  bonus: boolean;
   steps: number;
   /** Authoritative state after the shot — every client snaps to this. */
   after: GameState;
@@ -94,13 +105,15 @@ export function shuffle<T>(items: readonly T[], rng: () => number): T[] {
 export function newGame(playerIds: readonly string[], rng: () => number = Math.random): GameState {
   if (playerIds.length < 1) throw new Error('need at least one player');
   const order = shuffle(playerIds, rng);
+  const { goli, values } = layoutGoli(order.length * GOLI_PER_PLAYER);
   return {
     status: 'playing',
     order,
     turn: 0,
     shotInTurn: 0,
     striker: strikerInHand(seatAngle(0, order.length)),
-    goli: layoutGoli(order.length * GOLI_PER_PLAYER),
+    goli,
+    values,
     pouches: Object.fromEntries(order.map((id) => [id, []])),
     seq: 0,
   };
@@ -110,9 +123,14 @@ export function currentShooter(s: GameState): string | null {
   return s.status === 'playing' ? (s.order[s.turn] ?? null) : null;
 }
 
+/** A player's points: the value of every goli in their pouch. */
 export function score(s: GameState, playerId: string): number {
-  return s.pouches[playerId]?.length ?? 0;
+  let total = 0;
+  for (const id of s.pouches[playerId] ?? []) total += s.values[id] ?? 0;
+  return total;
 }
+
+export const isRaja = (s: GameState, goliId: number) => s.values[goliId] === RAJA_POINTS;
 
 /** Pass play to the next player around the table. Bumps seq. */
 function advanceTurn(s: GameState): GameState {
@@ -157,9 +175,12 @@ export function applyShot(s: GameState, playerId: string, input: ShotInput): Sho
   const sim = runToRest(createSim(start, velocity, before));
 
   const sb = sim.bodies[0];
-  const foul = !sb.onBoard;
+  const sdx = sb.x - CENTER;
+  const sdy = sb.y - CENTER;
+  // The striker must end on the ground and outside the ring.
+  const foul: Foul | null = !sb.onBoard ? 'off-board' : sdx * sdx + sdy * sdy < RING_R * RING_R ? 'in-ring' : null;
   const knockedOut: number[] = [];
-  const remaining: GoliPos[] = [];
+  let remaining: GoliPos[] = [];
   before.forEach((g, i) => {
     const b = sim.bodies[i + 1];
     const dx = b.x - CENTER;
@@ -168,13 +189,19 @@ export function applyShot(s: GameState, playerId: string, input: ShotInput): Sho
     else remaining.push({ id: g.id, x: b.x, y: b.y });
   });
 
-  const pouches = { ...s.pouches, [playerId]: [...(s.pouches[playerId] ?? []), ...knockedOut] };
+  // A foul scores nothing: whatever left the ring goes back in.
+  const won = foul ? [] : knockedOut;
+  if (foul && knockedOut.length) remaining = placeGoli(remaining, knockedOut);
+  const points = won.reduce((t, id) => t + (s.values[id] ?? 0), 0);
+  const bonus = won.some((id) => isRaja(s, id));
+
+  const pouches = { ...s.pouches, [playerId]: [...(s.pouches[playerId] ?? []), ...won] };
   const base: GameState = { ...s, goli: remaining, pouches };
 
   let after: GameState;
   if (remaining.length === 0) {
     after = { ...base, status: 'over', seq: s.seq + 1 };
-  } else if (foul || knockedOut.length === 0 || s.shotInTurn + 1 >= MAX_SHOTS_PER_TURN) {
+  } else if (won.length === 0 || !(bonus || s.shotInTurn + 1 < MAX_SHOTS_PER_TURN)) {
     after = advanceTurn(base);
   } else {
     after = {
@@ -197,6 +224,8 @@ export function applyShot(s: GameState, playerId: string, input: ShotInput): Sho
       strikerEnd: { x: sb.x, y: sb.y, onBoard: sb.onBoard },
       knockedOut,
       foul,
+      points,
+      bonus,
       steps: sim.steps,
       after,
     },
@@ -234,7 +263,7 @@ export function removePlayer(s: GameState, playerId: string): GameState {
   return { ...s, order, pouches, goli, turn: idx < s.turn ? s.turn - 1 : s.turn };
 }
 
-/** Everyone with the most goli (ties share the win). */
+/** Everyone with the most points (ties share the win). */
 export function winners(s: GameState): string[] {
   let best = -1;
   for (const id of s.order) best = Math.max(best, score(s, id));

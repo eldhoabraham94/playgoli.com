@@ -1,4 +1,4 @@
-import { CENTER, GOLI_R, RING_R, STRIKER_R } from './constants';
+import { CENTER, GOLI_POINTS, GOLI_R, RAJA_POINTS, RING_R, STRIKER_R } from './constants';
 
 export interface GoliPos {
   id: number;
@@ -6,40 +6,56 @@ export interface GoliPos {
   y: number;
 }
 
-const ARMS = [
+export interface Layout {
+  goli: GoliPos[];
+  /** Points per goli, indexed by goli id. */
+  values: number[];
+}
+
+const D = Math.SQRT1_2;
+/** Opposite pairs first, so a part-filled ring stays symmetric. */
+const ARMS: readonly (readonly [number, number])[] = [
   [1, 0],
-  [0, 1],
   [-1, 0],
+  [0, 1],
   [0, -1],
-] as const;
-const DIAGONALS = [
-  [1, 1],
-  [-1, -1],
-  [1, -1],
-  [-1, 1],
-] as const;
+  [D, D],
+  [-D, -D],
+  [D, -D],
+  [-D, D],
+];
 
 export const MAX_LAYOUT = 24;
 
+/** Points for a goli standing this far from the centre: the deeper, the more it's worth. */
+export function pointsAt(dist: number): number {
+  if (dist < 120) return GOLI_POINTS.blue;
+  if (dist < 190) return GOLI_POINTS.green;
+  return GOLI_POINTS.white;
+}
+
 /**
- * Tidy cross in the middle of the ring: four arms of goli, plus up to four
- * on the diagonals for counts that don't divide by 4. Never overlapping,
- * always fully inside the ring (checked by tests for every count).
+ * The starting pattern: `n` goli on 4 arms (small games) or 8 arms (big games),
+ * rings spread evenly out towards the edge, and the red Raja (id n) in the centre.
+ * Never overlapping, always fully inside the ring (tests check every count).
  */
-export function layoutGoli(n: number): GoliPos[] {
+export function layoutGoli(n: number): Layout {
   if (!Number.isInteger(n) || n < 0 || n > MAX_LAYOUT) throw new RangeError(`bad goli count ${n}`);
-  const perArm = Math.min(5, Math.floor(n / 4));
-  const extra = n - perArm * 4;
-  const step = perArm >= 4 ? 50 : 65;
-  const pts: { x: number; y: number }[] = [];
+  const arms = n <= 8 ? 4 : 8;
+  const perArm = Math.ceil(n / arms);
+  const goli: GoliPos[] = [];
+  const values: number[] = [];
   for (let k = 1; k <= perArm; k++) {
-    for (const [ax, ay] of ARMS) pts.push({ x: CENTER + ax * k * step, y: CENTER + ay * k * step });
+    const r = (250 * k) / (perArm + 0.5);
+    for (let a = 0; a < arms && goli.length < n; a++) {
+      const [dx, dy] = ARMS[a];
+      goli.push({ id: goli.length, x: CENTER + dx * r, y: CENTER + dy * r });
+      values.push(pointsAt(r));
+    }
   }
-  for (let i = 0; i < extra; i++) {
-    const [dx, dy] = DIAGONALS[i];
-    pts.push({ x: CENTER + dx * step, y: CENTER + dy * step });
-  }
-  return pts.map((p, id) => ({ id, x: p.x, y: p.y }));
+  goli.push({ id: n, x: CENTER, y: CENTER });
+  values.push(RAJA_POINTS);
+  return { goli, values };
 }
 
 /** Grid of candidate spots inside the ring, nearest the centre first (fixed order, so deterministic). */
@@ -57,7 +73,7 @@ const SPOTS: { x: number; y: number }[] = (() => {
 })();
 
 /**
- * Put goli back into the ring (e.g. a leaving player's pouch) on free spots that
+ * Put goli back into the ring (a foul, or a leaving player's pouch) on free spots that
  * don't touch existing goli or the striker.
  */
 export function placeGoli(existing: readonly GoliPos[], ids: readonly number[], striker?: { x: number; y: number }): GoliPos[] {

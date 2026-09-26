@@ -17,6 +17,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { getListenPref, getPlayerId, getVoicePref, setListenPref, setVoicePref } from './identity';
+import { setSoundOn } from './audio';
 import { VoicePlayer } from './voice';
 
 /** Errors that end the session (no auto-reconnect). */
@@ -200,7 +201,10 @@ export function useRoom(code: string, nickname: string): RoomConnection {
       player.close();
     };
   }, []);
-  useEffect(() => playerRef.current!.setMuted(!listen), [listen]);
+  useEffect(() => {
+    playerRef.current!.setMuted(!listen);
+    setSoundOn(listen);
+  }, [listen]);
 
   const sendVoice = useCallback((mime: VoiceMime, data: ArrayBuffer) => {
     sockRef.current?.emit('voice', { mime, data });

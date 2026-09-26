@@ -1,11 +1,11 @@
 import { goliLook } from '../game/render';
 
 /** A row of little goli for a player's winnings; `delay` (s) is when the first one drops in. */
-export function Pouch({ ids, delay = 0 }: { ids: number[]; delay?: number }) {
+export function Pouch({ ids, values, delay = 0 }: { ids: number[]; values: number[]; delay?: number }) {
   return (
     <span className="pouch">
       {ids.map((id, i) => {
-        const { glass, eye } = goliLook(id);
+        const { glass, eye } = goliLook(id, values[id] ?? 1);
         return (
           <span
             key={id}

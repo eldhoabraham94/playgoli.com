@@ -19,6 +19,9 @@ import { PlayerStrip } from '../ui/PlayerStrip';
 import { Results } from '../ui/Results';
 import { Toast, useToast } from '../ui/Toast';
 import { Hero, useInGame } from '../ui/Scene';
+import { Legend } from '../ui/Legend';
+import { getListenPref, setListenPref } from '../net/identity';
+import { setSoundOn } from '../net/audio';
 import { useWakeLock } from '../ui/useWakeLock';
 import { marbleDot } from '../ui/marble';
 
@@ -68,6 +71,7 @@ function LocalGame({ count, onExit, onRestart }: { count: number; onExit: () => 
   const [anim, setAnim] = useState<ShotResult | null>(null);
   const [deadline, setDeadline] = useState<number | null>(null);
   const [toast, showToast] = useToast();
+  const [sound, setSound] = useState(getListenPref);
   useWakeLock(true);
   useInGame();
   const [message, setMessage] = useState('Drag the ground to slide the striker. Pull back on it and let go to shoot.');
@@ -114,6 +118,18 @@ function LocalGame({ count, onExit, onRestart }: { count: number; onExit: () => 
     <div className="game">
       <div className="game-top">
         <PlayerStrip players={ordered} currentId={anim ? anim.shooterId : shooterId} />
+        <button
+          className={`icon-btn${sound ? ' on' : ''}`}
+          onClick={() => {
+            setListenPref(!sound);
+            setSoundOn(!sound);
+            setSound(!sound);
+          }}
+          aria-pressed={sound}
+          aria-label={sound ? 'Sound on: tap to mute' : 'Sound off: tap for sound'}
+        >
+          {sound ? '🔊' : '🔇'}
+        </button>
         <button className="leave-btn" onClick={onExit} aria-label="Leave practice">
           ✕
         </button>
@@ -121,6 +137,9 @@ function LocalGame({ count, onExit, onRestart }: { count: number; onExit: () => 
       <div className="board-area">
       <Board
         goli={game.goli}
+        values={game.values}
+        gameKey={game.order.join()}
+        buzz
         striker={game.status === 'playing' ? game.striker : null}
         strikerColor={(anim ? byId(anim.shooterId) : shooter)?.color ?? '#ffffff'}
         canAim={game.status === 'playing' && !anim}
@@ -140,12 +159,15 @@ function LocalGame({ count, onExit, onRestart }: { count: number; onExit: () => 
           </div>
         )}
         <div className="msg">{message}</div>
+        <Legend compact />
       </div>
       {game.status === 'over' && !anim && (
         <Results
+          values={game.values}
           rows={players.map((p) => ({
             ...p,
             pouch: game.pouches[p.id] ?? [],
+            points: score(game, p.id),
             winner: winners(game).includes(p.id),
           }))}
         >
