@@ -929,3 +929,229 @@ canvas.board {
     gap: 12px;
   }
 }
+
+/* ---------------------------------------------------------------- motion on static screens */
+
+/* Static screens sit above the ambient background. */
+.screen {
+  position: relative;
+  z-index: 1;
+}
+
+.ambient {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.in-game .ambient {
+  display: none;
+}
+.bokeh i {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: var(--s);
+  height: var(--s);
+  border-radius: 50%;
+  opacity: 0.14;
+  background:
+    radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.55) 0 7%, rgba(255, 255, 255, 0) 22%),
+    radial-gradient(circle, var(--c) 0 42%, rgba(0, 0, 0, 0) 70%);
+  animation: bokeh-drift 24s ease-in-out infinite alternate;
+}
+@keyframes bokeh-drift {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(34px, -46px) scale(1.12); }
+}
+.ambient-glow {
+  position: absolute;
+  left: 50%;
+  bottom: -30vh;
+  width: 140vw;
+  height: 60vh;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(161, 78, 46, 0.35), rgba(161, 78, 46, 0) 70%);
+  animation: glow-breathe 7s ease-in-out infinite alternate;
+}
+@keyframes glow-breathe {
+  from { opacity: 0.6; transform: translateX(-50%) scale(1); }
+  to { opacity: 1; transform: translateX(-50%) scale(1.08); }
+}
+
+/* Hero scene (Home, Join, Practice, errors). The stage is scaled, so trim its layout box. */
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.hero-lg .splash-stage {
+  margin: -6px 0 4px;
+}
+.hero-lg .splash-title {
+  margin-top: 12px;
+}
+.hero-sm .splash-stage {
+  --sp-k: 0.72;
+  margin: -34px 0 -24px;
+}
+
+/* Lobby: one marble knocks the next along a groove. */
+.track {
+  position: relative;
+  width: 220px;
+  height: 36px;
+  margin: 6px auto 0;
+}
+.track-groove {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 6px;
+  height: 4px;
+  border-radius: 2px;
+  background: #1a0b05;
+  box-shadow:
+    0 1px 0 rgba(255, 200, 160, 0.25),
+    inset 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+.tm {
+  position: absolute;
+  left: 0;
+  bottom: 9px;
+  width: 20px;
+  height: 20px;
+}
+.tm .sp {
+  position: absolute;
+  inset: 0;
+}
+.tm .shadow {
+  position: absolute;
+  left: 1px;
+  bottom: -5px;
+  width: 20px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0) 70%);
+}
+.tm-a .sp { --g: #e63946; --e: #ffffff; }
+.tm-b .sp { --g: #9fdcbf; --e: #1f7ae0; }
+.tm-a { animation: trk-a 3.4s infinite; }
+.tm-b { animation: trk-b 3.4s infinite; }
+.tm-a .sp::before { animation: trk-spin-a 3.4s infinite; }
+.tm-b .sp::before { animation: trk-spin-b 3.4s infinite; }
+@keyframes trk-a {
+  0% { transform: translateX(-10px); opacity: 0; animation-timing-function: cubic-bezier(0.2, 0.6, 0.4, 1); }
+  6% { opacity: 1; }
+  32% { transform: translateX(78px); }
+  34%, 84% { transform: translateX(74px); opacity: 1; }
+  94%, 100% { transform: translateX(74px); opacity: 0; }
+}
+@keyframes trk-b {
+  0%, 32% { transform: translateX(98px); opacity: 1; animation-timing-function: cubic-bezier(0.15, 0.8, 0.35, 1); }
+  66% { transform: translateX(206px); opacity: 1; }
+  72%, 86% { transform: translateX(206px); opacity: 0; }
+  87% { transform: translate(98px, -26px); opacity: 0; animation-timing-function: cubic-bezier(0.5, 0, 0.7, 0.4); }
+  95% { transform: translate(98px, 0); opacity: 1; animation-timing-function: ease-out; }
+  97.5% { transform: translate(98px, -5px); }
+  100% { transform: translate(98px, 0); opacity: 1; }
+}
+@keyframes trk-spin-a {
+  0% { transform: rotate(0); animation-timing-function: cubic-bezier(0.2, 0.6, 0.4, 1); }
+  32%, 100% { transform: rotate(420deg); }
+}
+@keyframes trk-spin-b {
+  0%, 32% { transform: rotate(0); animation-timing-function: cubic-bezier(0.15, 0.8, 0.35, 1); }
+  66%, 100% { transform: rotate(600deg); }
+}
+.tm-clack {
+  position: absolute;
+  left: 86px;
+  bottom: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0 14%, rgba(255, 210, 110, 0.6) 30%, rgba(255, 180, 60, 0) 65%);
+  opacity: 0;
+  animation: trk-clack 3.4s infinite;
+}
+@keyframes trk-clack {
+  0%, 30% { transform: scale(0.3); opacity: 0; }
+  33% { transform: scale(1); opacity: 1; }
+  44%, 100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* Things that arrive: lobby rows, pouch goli, practice buttons. */
+.anim-in {
+  animation: pop-in 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+@keyframes pop-in {
+  from { transform: translateY(10px) scale(0.6); opacity: 0; }
+}
+
+/* Start button breathes when it's ready to press. */
+.btn.pulse {
+  position: relative;
+}
+.btn.pulse::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  border: 2px solid #ffd66b;
+  box-shadow: 0 0 12px rgba(255, 214, 107, 0.6);
+  pointer-events: none;
+  animation: ring-out 1.8s ease-out infinite;
+}
+@keyframes ring-out {
+  0% { transform: scale(1); opacity: 1; }
+  55%, 100% { transform: scale(1.07, 1.3); opacity: 0; }
+}
+
+/* Inline hopping marbles after "Waiting…" text. */
+.hop {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+.hop .splash-bounce {
+  margin: 0;
+  gap: 5px;
+  animation: none;
+}
+.hop .splash-bounce i {
+  width: 7px;
+  height: 7px;
+}
+
+/* Results: a shower of tiny marbles behind the card. */
+.rain {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.rain i {
+  position: absolute;
+  top: -24px;
+  left: var(--x);
+  width: var(--s);
+  height: var(--s);
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #fff 0 12%, var(--c) 36%, color-mix(in srgb, var(--c) 50%, #000) 100%);
+  box-shadow: 1px 3px 4px rgba(0, 0, 0, 0.4);
+  animation: rain-fall var(--d) var(--delay) cubic-bezier(0.45, 0, 0.8, 0.6) both;
+}
+@keyframes rain-fall {
+  0% { transform: translateY(0) rotate(0); opacity: 0; }
+  8% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translateY(110vh) rotate(560deg); opacity: 0; }
+}
+.overlay .card {
+  position: relative;
+  z-index: 1;
+}

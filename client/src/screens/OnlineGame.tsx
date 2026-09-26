@@ -1,5 +1,4 @@
 import {
-  MAX_SHOTS_PER_TURN,
   SHOT_CLOCK_MS,
   applyShot,
   currentShooter,
@@ -10,7 +9,7 @@ import {
 } from '@goli/shared';
 import { useEffect, useRef, useState } from 'react';
 import { Board } from '../game/Board';
-import { bigMoment, describeShot, describeTurn } from '../game/describe';
+import { bigMoment, describeShot, describeTurn, shotCounter } from '../game/describe';
 import { roomLink } from '../net/api';
 import type { RoomConnection } from '../net/useRoom';
 import { PlayerStrip } from '../ui/PlayerStrip';
@@ -18,6 +17,7 @@ import { FloatingReactions, ReactionBar } from '../ui/Reactions';
 import { Results } from '../ui/Results';
 import { Toast, useToast } from '../ui/Toast';
 import { useWakeLock } from '../ui/useWakeLock';
+import { useInGame } from '../ui/Scene';
 
 /** Slides go to the server at most this often (everyone else sees them). */
 const SLIDE_EVERY_MS = 100;
@@ -41,6 +41,7 @@ export function OnlineGame({ conn, room, onLeave }: { conn: RoomConnection; room
 
   const myTurnNow = !!game && !anim && game.status === 'playing' && currentShooter(game) === room.you;
   useWakeLock(room.phase === 'playing');
+  useInGame();
   // A short buzz when it becomes your turn (phones that support it).
   useEffect(() => {
     if (myTurnNow) navigator.vibrate?.([25, 40, 25]);
@@ -108,8 +109,8 @@ export function OnlineGame({ conn, room, onLeave }: { conn: RoomConnection; room
   let turnLine: string;
   if (game.status !== 'playing') turnLine = 'Game over';
   else if (anim) turnLine = `${name(anim.shooterId)} ${anim.shooterId === you ? 'shoot' : 'shoots'}…`;
-  else if (myTurn) turnLine = `Your turn! Shot ${game.shotInTurn + 1}/${MAX_SHOTS_PER_TURN}`;
-  else turnLine = `${name(shooterId ?? '')} is lining up… (${game.shotInTurn + 1}/${MAX_SHOTS_PER_TURN})`;
+  else if (myTurn) turnLine = `Your turn!${shotCounter(game.shotInTurn)}`;
+  else turnLine = `${name(shooterId ?? '')} is lining up…${shotCounter(game.shotInTurn)}`;
 
   const hint = myTurn
     ? game.striker.inHand

@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Pouch } from './Pouch';
 import { shareOrCopy } from './share';
 import { marbleDot } from './marble';
+import { Rain } from './Scene';
 
 export interface ResultRow {
   id: string;
@@ -46,18 +47,23 @@ export function Results({ rows, link, children }: { rows: ResultRow[]; link?: st
 
   return (
     <div className="overlay">
-      <div className="card">
+      <Rain />
+      <div className="card anim-in">
         <h2>Results</h2>
         <ol className="ranking">
           {sorted.map((p, i) => (
-            <li key={p.id} className={`${p.winner ? 'winner' : ''}${p.you ? ' me' : ''}`}>
+            <li
+              key={p.id}
+              className={`anim-in${p.winner ? ' winner' : ''}${p.you ? ' me' : ''}`}
+              style={{ animationDelay: `${0.25 + i * 0.12}s` }}
+            >
               <span className="place">{MEDALS[place(i)] ?? place(i) + 1}</span>
               <span className="rank-name">
                 <span className="dot small" style={marbleDot(p.color)} /> {p.name}
                 {p.you && <span className="tag">you</span>}
               </span>
               <b>{p.pouch.length}</b>
-              <Pouch ids={p.pouch} />
+              <Pouch ids={p.pouch} delay={0.5 + i * 0.12} />
             </li>
           ))}
         </ol>

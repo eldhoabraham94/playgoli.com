@@ -1,5 +1,4 @@
 import {
-  MAX_SHOTS_PER_TURN,
   PLAYER_COLORS,
   SHOT_CLOCK_MS,
   applyShot,
@@ -15,10 +14,11 @@ import {
 } from '@goli/shared';
 import { useEffect, useMemo, useState } from 'react';
 import { Board } from '../game/Board';
-import { bigMoment, describeShot } from '../game/describe';
+import { bigMoment, describeShot, shotCounter } from '../game/describe';
 import { PlayerStrip } from '../ui/PlayerStrip';
 import { Results } from '../ui/Results';
 import { Toast, useToast } from '../ui/Toast';
+import { Hero, useInGame } from '../ui/Scene';
 import { useWakeLock } from '../ui/useWakeLock';
 import { marbleDot } from '../ui/marble';
 
@@ -40,11 +40,12 @@ export function Practice({ onExit }: { onExit: () => void }) {
   if (count === null) {
     return (
       <div className="screen">
+        <Hero size="sm" />
         <h2>Practice</h2>
         <p>How many players on this phone?</p>
         <div className="row">
           {[1, 2, 3, 4].map((n) => (
-            <button key={n} className="btn square" onClick={() => setCount(n)}>
+            <button key={n} className="btn square anim-in" style={{ animationDelay: `${0.15 + n * 0.08}s` }} onClick={() => setCount(n)}>
               {n}
             </button>
           ))}
@@ -68,6 +69,7 @@ function LocalGame({ count, onExit, onRestart }: { count: number; onExit: () => 
   const [deadline, setDeadline] = useState<number | null>(null);
   const [toast, showToast] = useToast();
   useWakeLock(true);
+  useInGame();
   const [message, setMessage] = useState('Drag the ground to slide the striker. Pull back on it and let go to shoot.');
 
   const byId = (id: string | null) => players.find((p) => p.id === id);
@@ -134,8 +136,7 @@ function LocalGame({ count, onExit, onRestart }: { count: number; onExit: () => 
       <div className="status">
         {shooter && !anim && (
           <div className="turn-line">
-            <span className="dot small" style={marbleDot(shooter.color)} /> <b>{shooter.name}</b>'s shot{' '}
-            {game.shotInTurn + 1}/{MAX_SHOTS_PER_TURN}
+            <span className="dot small" style={marbleDot(shooter.color)} /> <b>{shooter.name}</b>'s turn{shotCounter(game.shotInTurn)}
           </div>
         )}
         <div className="msg">{message}</div>

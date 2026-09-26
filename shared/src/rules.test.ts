@@ -81,19 +81,18 @@ describe('rules', () => {
     }
   });
 
-  it('capture: knocked-out goli go to the shooter, who shoots again from where the striker stopped', () => {
+  it('capture: knocked-out goli go to the shooter; with one attempt each, play passes on', () => {
     const s = captureSetup(twoPlayer());
     const r = ok(applyShot(s, 'a', { seq: s.seq, ...CAPTURE_SHOT }));
     expect(r.shot.knockedOut).toEqual([0]);
     expect(r.shot.foul).toBe(false);
     expect(score(r.state, 'a')).toBe(1);
-    expect(currentShooter(r.state)).toBe('a');
-    expect(r.state.shotInTurn).toBe(1);
-    expect(r.state.striker.inHand).toBe(false);
-    expect(r.state.striker.x).toBe(r.shot.strikerEnd.x);
-    expect(r.state.striker.y).toBe(r.shot.strikerEnd.y);
     expect(r.state.goli.map((g) => g.id)).toEqual([1]);
     expect(r.state.seq).toBe(s.seq + 1);
+    expect(MAX_SHOTS_PER_TURN).toBe(1);
+    expect(currentShooter(r.state)).toBe('b');
+    expect(r.state.shotInTurn).toBe(0);
+    expect(r.state.striker.inHand).toBe(true);
   });
 
   it('miss: turn passes and the next striker is in hand', () => {

@@ -10,7 +10,7 @@ The Indian childhood marbles game, in the browser. Up to 10 friends join by link
 
 - Each player puts 2 goli into the ring. Turn order is random, then goes around the table.
 - **Striker in hand:** drag anywhere on the ground to slide it along the dashed throw line. Then press on the striker, pull back like a catapult and let go. The further you pull, the harder it goes.
-- Knock one or more goli out of the ring: keep them and shoot again from where your striker stopped (up to 3 shots in a row).
+- Knock one or more goli out of the ring and you keep them. Everyone gets **one shot per turn**, then play passes on.
 - A miss ends your turn. If your striker rolls off the ground it's a foul, and that also ends your turn.
 - You have 15 seconds per shot. The game ends when the ring is empty.
 - While you wait, send 😂 🔥 😱 👏 🙏. Late arrivals watch and get a seat next game.

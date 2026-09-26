@@ -1,6 +1,7 @@
 import { isRoomCode, normaliseRoomCode } from '@goli/shared';
 import { useState } from 'react';
 import { createRoom } from '../net/api';
+import { Hero } from '../ui/Scene';
 
 export function Home({ navigate }: { navigate: (path: string) => void }) {
   const [busy, setBusy] = useState(false);
@@ -20,10 +21,7 @@ export function Home({ navigate }: { navigate: (path: string) => void }) {
 
   return (
     <div className="screen home">
-      <div className="logo">
-        <span className="logo-goli" />
-        <h1>Goli</h1>
-      </div>
+      <Hero size="lg" title />
       <p className="tagline">The marbles game from the school ground. One ring, up to 10 friends.</p>
       <button className="btn big" onClick={create} disabled={busy}>
         {busy ? 'Creating…' : 'Create game'}

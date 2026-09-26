@@ -2,6 +2,8 @@ import { ERROR_TEXT } from '@goli/shared';
 import { useState } from 'react';
 import { getLastRoom, getNickname, hasNickname, saveNickname, setLastRoom } from '../net/identity';
 import { useRoom } from '../net/useRoom';
+import { Splash } from '../ui/Splash';
+import { Hero } from '../ui/Scene';
 import { Join } from './Join';
 import { Lobby } from './Lobby';
 import { OnlineGame } from './OnlineGame';
@@ -68,6 +70,7 @@ function Session({
     if (fatal !== 'opened-elsewhere') setLastRoom(null);
     return (
       <div className="screen">
+        <Hero size="sm" />
         <h2>{fatal === 'opened-elsewhere' ? 'Open in another tab' : 'Oops'}</h2>
         <p>{ERROR_TEXT[fatal]}</p>
         <div className="row">
@@ -84,12 +87,7 @@ function Session({
     );
   }
   if (!room) {
-    return (
-      <div className="screen">
-        <span className="logo-goli spin" />
-        <p>Joining {code}…</p>
-      </div>
-    );
+    return <Splash text={conn.connected ? `Joining ${code}` : `Connecting to ${code}`} />;
   }
   const leave = () => {
     conn.send('leave');

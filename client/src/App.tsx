@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Home } from './screens/Home';
 import { Practice } from './screens/Practice';
 import { RoomPage } from './screens/RoomPage';
+import { Ambient } from './ui/Scene';
 
 function usePath(): [string, (p: string) => void] {
   const [path, setPath] = useState(location.pathname);
@@ -19,6 +20,15 @@ function usePath(): [string, (p: string) => void] {
 }
 
 export function App() {
+  return (
+    <>
+      <Ambient />
+      <Routes />
+    </>
+  );
+}
+
+function Routes() {
   const [path, navigate] = usePath();
   if (path === '/practice') return <Practice onExit={() => navigate('/')} />;
   const m = /^\/r\/([A-Za-z]{4})\/?$/.exec(path);

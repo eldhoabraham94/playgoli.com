@@ -2,6 +2,7 @@ import { NICK_MAX, randomName, sanitizeNickname, type RoomInfo } from '@goli/sha
 import { useEffect, useState } from 'react';
 import { getRoomInfo } from '../net/api';
 import { getNickname } from '../net/identity';
+import { Hero } from '../ui/Scene';
 
 export function Join({
   code,
@@ -29,6 +30,7 @@ export function Join({
   if (info === null) {
     return (
       <div className="screen">
+        <Hero size="sm" />
         <h2>Game {code} not found</h2>
         <p>It may have ended. Start a new one!</p>
         <button className="btn" onClick={onHome}>
@@ -55,6 +57,7 @@ export function Join({
 
   return (
     <div className="screen">
+      <Hero size="sm" />
       <p className="eyebrow">Joining game</p>
       <h2 className="room-code">{code}</h2>
       <p>{status}</p>

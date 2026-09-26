@@ -33,8 +33,8 @@ Status: all 5 phases done (v1). Deploy target: Render (render.yaml, Dockerfile).
 - Each player adds 2 goli; laid out as a non-overlapping cross inside the ring.
 - Turn order shuffled at start, then around the table. Each player's in-hand striker starts at their seat angle.
 - In hand: drag the ground to slide along the throw line; press the striker, pull back, release (power = pull distance, max pull 230 units).
-- Knock goli out (centre beyond r=285 at rest, or off the board) → keep them, shoot again from where the striker stopped (not in hand).
-- Max 3 shots per turn. A miss ends the turn. Striker leaving the board = foul, ends the turn (goli knocked out on that shot are kept).
+- Knock goli out (centre beyond r=285 at rest, or off the board) → keep them.
+- ONE shot per turn (MAX_SHOTS_PER_TURN = 1, user's choice): capture or miss, play passes. (The rules still support N>1: a capture then shoots again from where the striker stopped, not in hand.) Striker leaving the board = foul, ends the turn (goli knocked out on that shot are kept).
 - 15 s shot clock; timeout skips the turn.
 - Game over when the ring is empty. Most goli wins; ties share.
 - `seq` increments on every shot and turn change; a shot must quote the current seq.
@@ -82,7 +82,14 @@ dt = 1/240; each step: integrate → mark off-board bodies → pairwise collisio
 - `.game` is a grid: top bar (strip + leave) / board / fixed-height status. In landscape (≤560 px tall) the board goes left and the panel right.
 - `.screen` pages scroll when content doesn't fit (auto margins, not justify-content:center, so the top is never clipped).
 - Wake lock during games (`useWakeLock`), vibrate on release / full power / your turn.
-- `npm run shots [-- --landscape]` needs `npm run dev`; writes PNGs to ./shots (gitignored) at 384×824 (S23 Ultra).
+- `npm run shots [-- --landscape]` needs `npm run dev`; writes PNGs to ./shots (gitignored) at 384×824 (S23 Ultra). `--splash` captures loading-scene frames.
+
+## Loading scene (splash)
+- One CSS-only scene: client/src/splash/splash.css + markup.ts (tilted ground that sways, ring drawing itself, striker knocks a goli out on a 2.8 s loop, title drop + glint, dust, bouncing dots).
+- The `goli-inline-splash` Vite plugin inlines the CSS + markup into index.html (so it paints before JS). main.tsx fades it after fonts are ready; the first load per session stays up ≥1.3 s so the shot is seen. `?splash` keeps it up for previewing.
+- `<Splash text/>` (client/src/ui/Splash.tsx) reuses the same markup inside the app (joining a room).
+- Static screens (client/src/ui/Scene.tsx): `<Ambient/>` (drifting bokeh marbles + dust + glow) is mounted once in App and hidden via `body.in-game` (`useInGame()` in game screens). `<Hero size title/>` = the splash stage (Home lg with title; Join/Practice/errors sm). Lobby: `<Track/>` knock animation, rows `.anim-in`, Start `.pulse`, `<Hop/>` dots. Results: `<Rain/>` + staggered rows/pouch goli.
+- Scene CSS is scoped to `.splash-stage` (not `.splash`) and the glass marble `.sp` is global, so they work anywhere. Upright marbles use billboards (`.bb` counter-rotates the ground's sway); never put opacity on a preserve-3d element (it flattens), fade the leaves instead.
 
 ## Conventions
 - TypeScript strict everywhere, minimal dependencies.

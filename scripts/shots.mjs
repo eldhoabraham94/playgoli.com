@@ -21,6 +21,7 @@ const { values: a } = parseArgs({
     scale: { type: 'string', default: '2' },
     out: { type: 'string', default: 'shots' },
     landscape: { type: 'boolean', default: false },
+    splash: { type: 'boolean', default: false },
   },
 });
 const W = Number(a.landscape ? a.height : a.width);
@@ -100,7 +101,7 @@ const shot = async (name) => {
     for (const el of document.querySelectorAll('body *')) {
       const r = el.getBoundingClientRect();
       if (!r.width || !r.height || getComputedStyle(el).visibility === 'hidden') continue;
-      if (el.closest('.board-shadow')) continue;
+      if (el.closest('.board-shadow, .ambient, .rain')) continue;
       if (el.closest('.float-layer, .strip, .lobby-body, .card, .screen')) {
         if (!el.closest('.screen') || el.closest('.lobby-body, .card, .strip')) continue;
       }
@@ -120,9 +121,24 @@ console.log(`Viewport ${W}×${H} @${a.scale}x → ${OUT}/`);
 
 const go = async (path) => {
   await cdp('Page.navigate', { url: a.url + path });
-  await waitFor(`document.readyState === 'complete' && !!document.querySelector('#root > *')`);
+  await waitFor(`document.readyState === 'complete' && !!document.querySelector('#root > *') && !document.getElementById('splash')`);
   await js('document.fonts.ready.then(() => true)');
 };
+
+// Loading scene: frames across one 2.8 s loop of the shot (kept up with ?splash).
+if (a.splash) {
+  await cdp('Page.navigate', { url: a.url + '/?splash' });
+  const t0 = Date.now();
+  for (const ms of [250, 700, 1000, 1150, 1450, 2000, 2600, 3600]) {
+    await sleep(Math.max(0, ms - (Date.now() - t0)));
+    const { data } = await cdp('Page.captureScreenshot', { format: 'png' });
+    writeFileSync(join(OUT, `splash-${String(ms).padStart(4, '0')}ms.png`), Buffer.from(data, 'base64'));
+  }
+  console.log('splash frames written');
+  ws.close();
+  chrome.kill();
+  process.exit(0);
+}
 
 // Home
 await go('/');

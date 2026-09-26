@@ -5,6 +5,11 @@ type Namer = (id: string) => string;
 
 const possessive = (who: string) => (who === 'You' ? 'Your' : `${who}'s`);
 
+/** " (2/3)" style counter, or nothing when every turn is a single shot. */
+export function shotCounter(shotInTurn: number): string {
+  return MAX_SHOTS_PER_TURN > 1 ? ` (${shotInTurn + 1}/${MAX_SHOTS_PER_TURN})` : '';
+}
+
 /** One line about how a shot went, for the status bar. */
 export function describeShot(shot: ShotResult, name: Namer): string {
   const who = name(shot.shooterId);
@@ -15,8 +20,10 @@ export function describeShot(shot: ShotResult, name: Namer): string {
   if (shot.foul) return `Foul! ${possessive(who)} striker left the ground.${n ? ` ${you ? 'Keep' : 'Keeps'} ${n}.` : ''}`;
   if (n === 0) return `${who} missed.`;
   if (currentShooter(next) === shot.shooterId)
-    return `${who} knocked out ${n}! ${you ? 'Shoot' : 'Shoots'} again (${next.shotInTurn + 1}/${MAX_SHOTS_PER_TURN}).`;
-  return `${who} knocked out ${n}! That's ${MAX_SHOTS_PER_TURN} shots, next player.`;
+    return `${who} knocked out ${n}! ${you ? 'Shoot' : 'Shoots'} again${shotCounter(next.shotInTurn)}.`;
+  return MAX_SHOTS_PER_TURN > 1
+    ? `${who} knocked out ${n}! That's ${MAX_SHOTS_PER_TURN} shots, next player.`
+    : `${who} knocked out ${n}!`;
 }
 
 export function describeTurn(t: TurnMsg, name: Namer): string {

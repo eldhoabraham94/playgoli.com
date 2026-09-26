@@ -18,7 +18,8 @@ export const MAX_SIM_STEPS = 240 * 20;
 
 // Rules
 export const GOLI_PER_PLAYER = 2;
-export const MAX_SHOTS_PER_TURN = 3;
+/** One attempt per player per turn: capture or not, play passes on. */
+export const MAX_SHOTS_PER_TURN = 1;
 export const SHOT_CLOCK_MS = 15_000;
 /** A shooter who is disconnected gets this long before their turn is skipped. */
 export const AWAY_TURN_MS = 4_000;

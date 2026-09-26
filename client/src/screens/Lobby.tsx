@@ -4,6 +4,7 @@ import { roomLink } from '../net/api';
 import type { RoomConnection } from '../net/useRoom';
 import { InviteButton, QrCode } from '../ui/Invite';
 import { marbleDot } from '../ui/marble';
+import { Hop, Track } from '../ui/Scene';
 
 export function Lobby({ conn, room, onLeave }: { conn: RoomConnection; room: RoomSnapshot; onLeave: () => void }) {
   const link = roomLink(room.code);
@@ -24,8 +25,8 @@ export function Lobby({ conn, room, onLeave }: { conn: RoomConnection; room: Roo
     return () => clearTimeout(t);
   }, [armed]);
 
-  const row = (p: PublicMember) => (
-    <li key={p.id} className={p.connected ? '' : 'away'}>
+  const row = (p: PublicMember, i: number) => (
+    <li key={p.id} className={`anim-in${p.connected ? '' : ' away'}`} style={{ animationDelay: `${Math.min(i, 9) * 45}ms` }}>
       <span className="dot" style={marbleDot(p.color)} />
       <span className="pname">{p.name}</span>
       {p.id === room.you && <span className="tag">you</span>}
@@ -53,6 +54,7 @@ export function Lobby({ conn, room, onLeave }: { conn: RoomConnection; room: Roo
       <div className="lobby-head">
         <p className="eyebrow">Game code</p>
         <h2 className="room-code">{room.code}</h2>
+        <Track />
         {!conn.connected && <p className="error">Reconnecting…</p>}
       </div>
 
@@ -62,7 +64,12 @@ export function Lobby({ conn, room, onLeave }: { conn: RoomConnection; room: Roo
         </p>
         <ul className="players">
           {room.players.map(row)}
-          {room.players.length < 2 && <li className="empty">Waiting for friends…</li>}
+          {room.players.length < 2 && (
+            <li className="empty">
+              Waiting for friends
+              <Hop />
+            </li>
+          )}
         </ul>
         {room.spectators.length > 0 && (
           <>
@@ -84,11 +91,14 @@ export function Lobby({ conn, room, onLeave }: { conn: RoomConnection; room: Roo
       <div className="lobby-foot">
         {notice && <p className="error">{ERROR_TEXT[notice]}</p>}
         {isHost ? (
-          <button className="btn big" disabled={ready < 2} onClick={() => conn.send('start')}>
+          <button className={`btn big${ready >= 2 ? ' pulse' : ''}`} disabled={ready < 2} onClick={() => conn.send('start')}>
             {ready < 2 ? 'Need 2+ players' : 'Start'}
           </button>
         ) : (
-          <p>Waiting for the host to start…</p>
+          <p>
+            Waiting for the host to start
+            <Hop />
+          </p>
         )}
         <button className="btn ghost small" onClick={onLeave}>
           Leave

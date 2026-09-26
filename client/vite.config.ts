@@ -1,6 +1,8 @@
 import react from '@vitejs/plugin-react';
+import { readFileSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
 import { defineConfig, type Plugin } from 'vite';
+import { splashHtml } from './src/splash/markup';
 
 const PORT = 5173;
 
@@ -28,8 +30,23 @@ function devOgPlaceholders(): Plugin {
   };
 }
 
+/**
+ * Inline the loading scene (CSS + markup) into index.html so it paints on the very
+ * first frame, before the JS bundle arrives. main.tsx fades it out once the app is up.
+ */
+function inlineSplash(): Plugin {
+  const cssPath = new URL('./src/splash/splash.css', import.meta.url);
+  return {
+    name: 'goli-inline-splash',
+    transformIndexHtml: (html) => ({
+      html: html.replace('<!--splash-->', splashHtml('Scratching the ring…')),
+      tags: [{ tag: 'style', attrs: { id: 'splash-css' }, children: readFileSync(cssPath, 'utf8'), injectTo: 'head' }],
+    }),
+  };
+}
+
 export default defineConfig(({ command }) => ({
-  plugins: [react(), devOgPlaceholders()],
+  plugins: [react(), devOgPlaceholders(), inlineSplash()],
   define: {
     __LAN_ORIGIN__: JSON.stringify(command === 'serve' ? lanOrigin() : ''),
   },
