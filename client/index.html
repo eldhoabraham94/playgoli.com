@@ -4,12 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#241510" />
-    <title>{{OG_TITLE}}</title>
+    <!-- The server fills every {{…}} per page (see server/src/static.ts and shared/src/seo.ts). -->
+    <title>{{TITLE}}</title>
     <meta name="description" content="{{OG_DESC}}" />
+    <meta name="robots" content="{{ROBOTS}}" />
+    <link rel="canonical" href="{{CANONICAL}}" />
+    <meta name="application-name" content="Goli" />
+    <meta name="apple-mobile-web-app-title" content="Goli" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
 
-    <!-- Link previews (WhatsApp, Telegram, iMessage…). The server fills these in per request. -->
+    <!-- Link previews (WhatsApp, Telegram, iMessage, X…). -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Goli" />
+    <meta property="og:locale" content="en_IN" />
     <meta property="og:title" content="{{OG_TITLE}}" />
     <meta property="og:description" content="{{OG_DESC}}" />
     <meta property="og:url" content="{{OG_URL}}" />
@@ -19,19 +27,24 @@
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="GOLI spelled with glass marbles next to a ring scratched in red soil" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="{{OG_TITLE}}" />
+    <meta name="twitter:description" content="{{OG_DESC}}" />
+    <meta name="twitter:image" content="{{OG_IMAGE}}" />
 
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Baloo+Chettan+2:wght@500;700;800&family=Manjari:wght@400;700&display=swap"
       rel="stylesheet"
     />
+    {{JSONLD}}
   </head>
   <body>
     <!--splash-->
-    <div id="root"></div>
+    <div id="root">{{SEO_BODY}}</div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

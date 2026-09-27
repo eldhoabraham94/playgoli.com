@@ -23,10 +23,12 @@ function devOgPlaceholders(): Plugin {
     apply: 'serve',
     transformIndexHtml: (html) =>
       html
-        .replace(/\{\{OG_TITLE\}\}/g, 'Goli: marbles with friends')
+        .replace(/\{\{(TITLE|OG_TITLE)\}\}/g, 'Goli (dev)')
         .replace(/\{\{OG_DESC\}\}/g, 'The Indian childhood marbles game.')
-        .replace(/\{\{OG_URL\}\}/g, '/')
-        .replace(/\{\{OG_IMAGE\}\}/g, '/og.png'),
+        .replace(/\{\{(OG_URL|CANONICAL)\}\}/g, '/')
+        .replace(/\{\{OG_IMAGE\}\}/g, '/og.png')
+        .replace(/\{\{ROBOTS\}\}/g, 'noindex')
+        .replace(/\{\{(JSONLD|SEO_BODY)\}\}/g, ''),
   };
 }
 

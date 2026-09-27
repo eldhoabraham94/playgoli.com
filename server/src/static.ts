@@ -2,7 +2,20 @@
  * Serves the built client (client/dist) in production: everything is loaded
  * into memory at startup (it is small), gzipped once, and looked up by exact
  * path, so request paths never touch the filesystem (no traversal possible).
+ *
+ * Each app route gets its own title, description, canonical URL, robots rule,
+ * structured data and crawlable text (see shared/src/seo.ts).
  */
+import {
+  HOME_META,
+  HOW_TO_META,
+  PRACTICE_META,
+  homeJsonLd,
+  homeSeoHtml,
+  howToJsonLd,
+  howToSeoHtml,
+  type PageMeta,
+} from '@goli/shared';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { extname, join, relative, sep } from 'node:path';
@@ -19,9 +32,10 @@ const TYPES: Record<string, string> = {
   '.jpg': 'image/jpeg',
   '.ico': 'image/x-icon',
   '.txt': 'text/plain; charset=utf-8',
+  '.xml': 'application/xml; charset=utf-8',
   '.woff2': 'font/woff2',
 };
-const COMPRESSIBLE = new Set(['.html', '.js', '.css', '.json', '.svg', '.txt', '.webmanifest']);
+const COMPRESSIBLE = new Set(['.html', '.js', '.css', '.json', '.svg', '.txt', '.xml', '.webmanifest']);
 
 export const SECURITY_HEADERS: Record<string, string> = {
   'x-content-type-options': 'nosniff',
@@ -34,6 +48,7 @@ export const SECURITY_HEADERS: Record<string, string> = {
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data:",
     "connect-src 'self' ws: wss:",
+    "manifest-src 'self'",
     "frame-ancestors 'none'",
     "base-uri 'none'",
     "form-action 'self'",
@@ -50,6 +65,8 @@ interface Asset {
 export interface Site {
   assets: Map<string, Asset>;
   template: string;
+  /** When the client was built (sitemap lastmod). */
+  builtAt: Date;
 }
 
 function walk(dir: string): string[] {
@@ -76,12 +93,12 @@ export function loadSite(dir: string): Site | null {
       cache: url.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'public, max-age=3600',
     });
   }
-  return { assets, template: readFileSync(indexPath, 'utf8') };
+  return { assets, template: readFileSync(indexPath, 'utf8'), builtAt: statSync(indexPath).mtime };
 }
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-/** Public origin for absolute OG URLs: PUBLIC_URL if set, else from the request. */
+/** Public origin for absolute URLs: PUBLIC_URL if set, else from the request. */
 export function originOf(req: IncomingMessage, publicUrl: string | undefined, trustProxy: boolean): string {
   if (publicUrl) return publicUrl.replace(/\/+$/, '');
   const fwdProto = trustProxy ? String(req.headers['x-forwarded-proto'] ?? '').split(',')[0].trim() : '';
@@ -90,22 +107,85 @@ export function originOf(req: IncomingMessage, publicUrl: string | undefined, tr
   return `${proto}://${host}`;
 }
 
-/** Fill the Open Graph placeholders; room links get an invitation preview. */
-export function renderIndex(template: string, origin: string, path: string): string {
-  const room = /^\/r\/([A-Za-z]{4})\/?$/.exec(path)?.[1]?.toUpperCase();
-  const vars: Record<string, string> = room
-    ? {
-        OG_TITLE: 'Come play Goli with me!',
-        OG_DESC: `Tap to join game ${room}. The marbles game from the school ground. Up to 10 friends, no sign-up.`,
-        OG_URL: `${origin}/r/${room}`,
-      }
-    : {
-        OG_TITLE: 'Goli: marbles with friends',
-        OG_DESC: 'The Indian childhood marbles game. One ring, up to 10 friends, no sign-up. Plays great on your phone.',
-        OG_URL: `${origin}/`,
-      };
-  vars.OG_IMAGE = `${origin}/og.png`;
-  return template.replace(/\{\{(OG_[A-Z]+)\}\}/g, (m, k: string) => (k in vars ? esc(vars[k]) : m));
+/** Pages we want in search results (for the sitemap). */
+export const INDEXED_PATHS = ['/', '/how-to-play', '/practice'];
+
+/** Structured data as <script type="application/ld+json">, safe against "</script>". */
+const jsonLd = (items: object[]) =>
+  items.map((o) => `<script type="application/ld+json">${JSON.stringify(o).replace(/</g, '\\u003c')}</script>`).join('');
+
+export interface Rendered {
+  html: string;
+  status: number;
+}
+
+/**
+ * Fill the page for one route: title, description, canonical URL, robots rule,
+ * link-preview tags, structured data, and real text for crawlers. React replaces
+ * #root's content once it starts, with the same copy (shared/src/seo.ts).
+ */
+export function renderIndex(template: string, origin: string, path: string): Rendered {
+  const clean = path.replace(/\/+$/, '') || '/';
+  const room = /^\/r\/([A-Za-z]{4})$/.exec(clean)?.[1]?.toUpperCase();
+  let meta: PageMeta;
+  let status = 200;
+  let robots = 'index, follow, max-image-preview:large';
+  let canonical = `${origin}${clean}`;
+  if (clean === '/') canonical = `${origin}/`;
+  let body = '';
+  let ld: object[] = [];
+
+  if (clean === '/') {
+    meta = HOME_META;
+    body = homeSeoHtml();
+    ld = homeJsonLd(origin);
+  } else if (clean === '/how-to-play') {
+    meta = HOW_TO_META;
+    body = howToSeoHtml();
+    ld = howToJsonLd(origin);
+  } else if (clean === '/practice') {
+    meta = PRACTICE_META;
+  } else if (room) {
+    // Game rooms come and go: great for link previews, not for search results.
+    meta = {
+      title: `Join game ${room} | Goli`,
+      description: `Tap to join game ${room}. The marbles game from the school ground. Up to 10 friends, no sign-up.`,
+      ogTitle: 'Come play Goli with me!',
+    };
+    robots = 'noindex, follow';
+    canonical = `${origin}/r/${room}`;
+  } else {
+    meta = { title: 'Page not found | Goli', description: HOME_META.description, ogTitle: HOME_META.ogTitle };
+    robots = 'noindex, follow';
+    canonical = `${origin}/`;
+    status = 404;
+  }
+
+  const vars: Record<string, string> = {
+    TITLE: esc(meta.title),
+    OG_TITLE: esc(meta.ogTitle),
+    OG_DESC: esc(meta.description),
+    OG_URL: esc(canonical),
+    OG_IMAGE: esc(`${origin}/og.png`),
+    CANONICAL: esc(canonical),
+    ROBOTS: esc(robots),
+    JSONLD: jsonLd(ld),
+    SEO_BODY: body,
+  };
+  const html = template.replace(/\{\{([A-Z_]+)\}\}/g, (m, k: string) => (k in vars ? vars[k] : m));
+  return { html, status };
+}
+
+export function robotsTxt(origin: string): string {
+  return `User-agent: *\nAllow: /\nDisallow: /r/\nDisallow: /api/\n\nSitemap: ${origin}/sitemap.xml\n`;
+}
+
+export function sitemapXml(origin: string, lastmod: string): string {
+  const urls = INDEXED_PATHS.map(
+    (p) =>
+      `  <url><loc>${origin}${p}</loc><lastmod>${lastmod}</lastmod><changefreq>weekly</changefreq><priority>${p === '/' ? '1.0' : '0.7'}</priority></url>`,
+  ).join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
 }
 
 function send(req: IncomingMessage, res: ServerResponse, status: number, a: Omit<Asset, 'gz'> & { gz?: Buffer | null }) {
@@ -122,6 +202,11 @@ function send(req: IncomingMessage, res: ServerResponse, status: number, a: Omit
   res.end(req.method === 'HEAD' ? undefined : body);
 }
 
+const text = (body: string, type: string) => {
+  const b = Buffer.from(body);
+  return { body: b, gz: gzipSync(b), type, cache: 'public, max-age=3600' };
+};
+
 /** Returns true if it handled the request. */
 export function serveStatic(
   site: Site,
@@ -136,10 +221,20 @@ export function serveStatic(
     send(req, res, 200, asset);
     return true;
   }
+  const origin = originOf(req, opts.publicUrl, opts.trustProxy);
+  if (path === '/robots.txt') {
+    send(req, res, 200, text(robotsTxt(origin), TYPES['.txt']));
+    return true;
+  }
+  if (path === '/sitemap.xml') {
+    send(req, res, 200, text(sitemapXml(origin, site.builtAt.toISOString().slice(0, 10)), TYPES['.xml']));
+    return true;
+  }
   // A missing file (anything with an extension, or under /assets) is a real 404.
   if (path.startsWith('/assets/') || extname(path)) return false;
-  // Everything else is an app route (/, /r/CODE, /practice): the SPA shell.
-  const html = Buffer.from(renderIndex(site.template, originOf(req, opts.publicUrl, opts.trustProxy), path));
-  send(req, res, 200, { body: html, gz: gzipSync(html), type: TYPES['.html'], cache: 'no-cache' });
+  // Everything else gets the app shell; unknown pages say so with a 404 (and noindex).
+  const page = renderIndex(site.template, origin, path);
+  const html = Buffer.from(page.html);
+  send(req, res, page.status, { body: html, gz: gzipSync(html), type: TYPES['.html'], cache: 'no-cache' });
   return true;
 }

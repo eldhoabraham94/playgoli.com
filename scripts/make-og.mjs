@@ -236,5 +236,7 @@ function icon(size, bg, alpha = false) {
 }
 writeFileSync(new URL('../client/public/favicon.png', import.meta.url), icon(64, null, true));
 writeFileSync(new URL('../client/public/icon-192.png', import.meta.url), icon(192, hex('#241510')));
+// 512 px, safe for 'maskable' (the marble fills the middle 80%).
+writeFileSync(new URL('../client/public/icon-512.png', import.meta.url), icon(512, hex('#241510')));
 
-console.log('Wrote client/public/og.png, favicon.png, icon-192.png');
+console.log('Wrote client/public/og.png, favicon.png, icon-192.png, icon-512.png');

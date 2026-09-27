@@ -102,6 +102,12 @@ dt = 1/240; each step: integrate → mark off-board bodies → pairwise collisio
 - Goli colour by value (`VALUE_GLASS`); the Raja has a pulsing gold ring. Aim guide is a short arrow.
 - Sounds are synthesised (client/src/game/sfx.ts): glass clack (by impulse, panned), gritty rolling, thud, tock when a goli crosses the ring. One shared AudioContext (net/audio.ts), unlocked on any tap; the 🔊 switch mutes voices and effects. The shooter's phone buzzes on hits.
 
+## SEO
+- Copy lives in shared/src/seo.ts (titles, descriptions, home intro/features/FAQ, how-to-play article, JSON-LD). The server's `renderIndex` (server/src/static.ts) fills index.html's {{TITLE}}, {{OG_*}}, {{CANONICAL}}, {{ROBOTS}}, {{JSONLD}}, {{SEO_BODY}} per route, so crawlers get real text without JS; React renders the same copy (Home "about" below the fold, /how-to-play screen).
+- Routes: / and /how-to-play and /practice indexed (sitemap.xml); /r/CODE noindex (ephemeral rooms); unknown paths → 404 + noindex. robots.txt disallows /r/ and /api/. PUBLIC_URL (https://www.playgoli.com) is the canonical origin.
+- One <h1> per page: the loading splash's title is a div.
+- manifest.webmanifest + icon-192/512 (installable).
+
 ## Conventions
 - TypeScript strict everywhere, minimal dependencies.
 - Nicknames are only ever rendered as React text (auto-escaped) and are sanitized on the server.

@@ -1348,3 +1348,178 @@ canvas.board {
   font-size: 0.7em;
   color: var(--muted);
 }
+
+/* ---------------------------------------------------------------- about / how-to-play (also what search engines read) */
+
+.home {
+  justify-content: flex-start;
+}
+.home > :first-child,
+.home > :last-child {
+  margin: 0;
+}
+/* The first screen stays exactly as before; the rest scrolls up under it. */
+.fold {
+  min-height: calc(100dvh - 40px);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  flex: none;
+}
+.more-hint {
+  margin-top: 6px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: hint-bob 2.2s ease-in-out infinite;
+}
+.more-hint span {
+  font-size: 1.4rem;
+  line-height: 0.6;
+}
+@keyframes hint-bob {
+  50% {
+    transform: translateY(4px);
+  }
+}
+.about {
+  width: min(560px, 100%);
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 24px;
+}
+.about h1 {
+  font-size: 1.9rem;
+  margin: 0;
+  color: #ffd66b;
+}
+.about h2 {
+  font-size: 1.3rem;
+  margin: 14px 0 0;
+  color: var(--cream);
+}
+.about p,
+.about li {
+  color: var(--muted);
+  line-height: 1.55;
+  font-size: 1rem;
+}
+.about ul,
+.about ol {
+  margin: 0;
+  padding-left: 1.3em;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ticks {
+  list-style: none;
+  padding-left: 0 !important;
+}
+.ticks li {
+  position: relative;
+  padding-left: 22px;
+}
+.ticks li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0.45em;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff 0 14%, #f2b705 35%, #a66d15 100%);
+  box-shadow: 1px 2px 2px rgba(0, 0, 0, 0.4);
+}
+.steps li::marker {
+  color: var(--accent);
+  font-weight: 800;
+}
+.about .btn {
+  align-self: center;
+  margin-top: 10px;
+  text-decoration: none;
+}
+.faq {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.faq details {
+  border-radius: 14px;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, var(--panel-hi), var(--panel));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 3px 0 var(--panel-edge);
+}
+.faq summary {
+  cursor: pointer;
+  font-family: 'Baloo Chettan 2', system-ui, sans-serif;
+  color: var(--cream);
+}
+.faq details p {
+  margin-top: 6px;
+}
+.article {
+  justify-content: flex-start;
+}
+.article > :first-child,
+.article > :last-child {
+  margin: 0;
+}
+.crumbs {
+  align-self: flex-start;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.crumbs a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.about .legend {
+  justify-content: flex-start;
+}
+
+/* If JS is off, the server-rendered copy is readable on its own. */
+.seo-static {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 18px;
+  line-height: 1.6;
+  color: #c9a88c;
+}
+.seo-static h1,
+.seo-static h2,
+.seo-static h3 {
+  color: #f7e8d3;
+  font-family: 'Baloo Chettan 2', system-ui, sans-serif;
+}
+.seo-static a {
+  color: #f2b705;
+}
+
+/* Long articles: never wider than the screen. */
+.about {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.article,
+.home {
+  width: 100%;
+  align-items: stretch;
+}
+.article > *,
+.home > * {
+  align-self: center;
+  max-width: 100%;
+}

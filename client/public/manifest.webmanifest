@@ -1,0 +1,17 @@
+{
+  "name": "Goli – Online Marbles Game",
+  "short_name": "Goli",
+  "description": "The classic Indian marbles game, online with up to 10 friends. Free, no download, no sign-up.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1f120c",
+  "theme_color": "#241510",
+  "categories": ["games", "entertainment", "social"],
+  "lang": "en",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

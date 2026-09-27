@@ -26,10 +26,13 @@ export const SPLASH_STAGE =
   `<div class="m clack"><div class="bb"><div class="burst"></div></div></div>` +
   `<div class="splash-edge"></div></div></div>`;
 
-export const SPLASH_TITLE = `<h1 class="splash-title"><span>G</span><span>o</span><span>l</span><span>i</span></h1>`;
+/** The dropping GOLI letters; a real <h1> in the app, a plain element in the loading splash (one h1 per page). */
+export const splashTitle = (tag: 'h1' | 'div') =>
+  `<${tag} class="splash-title"><span>G</span><span>o</span><span>l</span><span>i</span></${tag}>`;
+export const SPLASH_TITLE = splashTitle('h1');
 
 /** Everything above the loading text. */
-export const SPLASH_SCENE = SPLASH_DUST + SPLASH_STAGE + SPLASH_TITLE;
+export const SPLASH_SCENE = SPLASH_DUST + SPLASH_STAGE + splashTitle('div');
 
 export const SPLASH_BOUNCE = '<div class="splash-bounce" aria-hidden="true"><i></i><i></i><i></i></div>';
 

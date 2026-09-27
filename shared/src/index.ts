@@ -6,3 +6,4 @@ export * from './names';
 export * from './nickname';
 export * from './code';
 export * from './messages';
+export * from './seo';

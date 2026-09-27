@@ -172,6 +172,10 @@ await shot('4-game');
 // Results overlay (inject a finished-looking state is hard; show practice results instead)
 for (const b of bots) b.disconnect();
 
+// How to play (the SEO article)
+await go('/how-to-play');
+await shot('0-how-to-play');
+
 // Practice
 await go('/practice');
 await clickText('2');
